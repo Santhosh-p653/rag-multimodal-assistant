@@ -1,12 +1,26 @@
+version: '3.8'
+
 services:
   backend:
-    build: ./backend
+    container_name: mrag-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/data_sandbox:/app/data_sandbox
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    container_name: mrag-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     depends_on:
       - backend
+    restart: unless-stopped

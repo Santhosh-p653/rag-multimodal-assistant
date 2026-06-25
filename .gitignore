@@ -1,0 +1,60 @@
+# Python/Backend virtual environments and caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+.pytest_cache/
+
+# Local configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Frontend build outputs and dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+.docusaurus/
+.cache/
+.serverless/
+.fusebox/
+.dynamodb/
+
+# Local data sandbox / uploaded manuals (to keep sandbox clean from git tracking)
+data_sandbox/
+backend/data_sandbox/
+backend/app/__pycache__/
+backend/app/services/__pycache__/
+
+# System / IDE files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

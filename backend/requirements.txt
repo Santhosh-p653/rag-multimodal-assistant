@@ -1,3 +1,11 @@
 fastapi
 uvicorn[standard]
 pydantic
+python-multipart
+markitdown[pdf]
+sentence-transformers
+qdrant-client
+groq
+openai
+python-dotenv
+torch
