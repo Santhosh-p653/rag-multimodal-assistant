@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 import sys
@@ -18,14 +17,28 @@ client = TestClient(fastapi_app)
 
 def test_rate_limits_chat():
     with patch("app.main.retrieve_context") as mock_ret, patch("app.main.call_llm") as mock_llm:
-        mock_ret.return_value = [{"chunk_id": "c1", "content": "Manual instructions.", "source": "manual.pdf"}]
+        mock_ret.return_value = [
+            {
+                "chunk_id": "c1",
+                "content": "Manual instructions.",
+                "source": "manual.pdf",
+            }
+        ]
+
         mock_llm.return_value = "Mocked LLM answer."
 
         # The limit on /chat is 20/minute
         for _ in range(20):
-            response = client.post("/chat", json={"message": "healthy rate limit test query"})
+            response = client.post(
+                "/chat",
+                json={"message": "healthy rate limit test query"},
+            )
             assert response.status_code == 200
 
         # The 21st query within the minute window must yield 429 Too Many Requests
-        blocked_response = client.post("/chat", json={"message": "healthy rate limit test query"})
+        blocked_response = client.post(
+            "/chat",
+            json={"message": "healthy rate limit test query"},
+        )
+
         assert blocked_response.status_code == 429
