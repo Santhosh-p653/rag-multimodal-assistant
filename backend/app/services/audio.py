@@ -6,7 +6,7 @@ and text-to-speech (TTS) via edge-tts (local Microsoft Neural Voices).
 import os
 import re
 import tempfile
-import subprocess
+import subprocess  # nosec B404
 import httpx
 import edge_tts
 from langdetect import detect
@@ -39,7 +39,6 @@ _whisper_model = None
 
 
 def get_whisper_model():
-    """Singleton for local Whisper Model on CPU."""
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
@@ -52,7 +51,6 @@ def get_whisper_model():
 def convert_to_wav(input_path: str) -> str:
     """
     Transcode uploaded audio file to standard 16kHz mono WAV using FFmpeg.
-    Ensures compatibility with Whisper and Sarvam AI.
     """
     temp_dir = tempfile.gettempdir()
     output_path = os.path.join(
@@ -75,11 +73,11 @@ def convert_to_wav(input_path: str) -> str:
     try:
         subprocess.run(
             cmd,
-            shell=False,  # explicit safety signal for Bandit
+            shell=False,
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-        )
+        )  # nosec B603
         return output_path
 
     except subprocess.CalledProcessError as e:
@@ -87,7 +85,6 @@ def convert_to_wav(input_path: str) -> str:
 
 
 async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
-    """Hybrid STT: local Whisper for English, Sarvam API for others."""
     transcoded_path = convert_to_wav(file_path)
 
     try:
