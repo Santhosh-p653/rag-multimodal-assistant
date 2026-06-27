@@ -1,0 +1,22 @@
+name: Security Scan
+
+on: [push, pull_request]
+
+jobs:
+  secret_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install detect-secrets
+      run: pip install detect-secrets
+
+    - name: Scan Repository for Secrets
+      run: detect-secrets scan --exclude-files '.*venv.*|.*node_modules.*|.*__pycache__.*'

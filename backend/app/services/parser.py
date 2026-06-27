@@ -8,12 +8,13 @@ from markitdown import MarkItDown
 from app.services.chunker import chunk_markdown
 from app.services.embedder import EmbedderService
 from app.services.vector_store import VectorStoreService
+from app.config import settings
 
 
 class ParserService:
     def __init__(self):
-        self.input_dir = "data_sandbox/input_manuals"
-        self.output_dir = "data_sandbox/processed_markdown"
+        self.input_dir = str(settings.INPUT_DIR)
+        self.output_dir = str(settings.OUTPUT_DIR)
 
         # Ensure target directories exist
         os.makedirs(self.input_dir, exist_ok=True)
@@ -66,8 +67,13 @@ class ParserService:
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(md_content)
 
+        # Extract metadata from filename and sample content
+        from app.services.product_identifier import identify_product
+        sample_text = md_content[:1500]
+        metadata = identify_product(f"File: {filename}\n{sample_text}")
+
         # 4. Chunk the markdown
-        chunks = chunk_markdown(md_content, source_file=filename)
+        chunks = chunk_markdown(md_content, source_file=filename, metadata=metadata)
 
         # 5. Embed all chunks in one batch for efficiency
         texts = [chunk["content"] for chunk in chunks]

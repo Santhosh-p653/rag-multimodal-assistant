@@ -13,3 +13,9 @@ faster-whisper
 edge-tts
 langdetect
 httpx
+slowapi
+pytest
+black
+ruff
+bandit
+safety

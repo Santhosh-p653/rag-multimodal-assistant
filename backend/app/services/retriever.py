@@ -2,66 +2,97 @@ from typing import Optional
 from app.services.embedder import EmbedderService
 from app.services.vector_store import VectorStoreService
 from app.services.hybrid_search import BM25, rrf_merge
+from app.services.metadata_resolver import resolve_metadata_filter
+from app.services.product_identifier import identify_product
 from app.config import TOP_K, SCORE_THRESHOLD
 
 
-def retrieve_context(query: str, source_file: Optional[str] = None) -> list[dict]:
+def retrieve_context(
+    query: str, 
+    source_file: Optional[str] = None,
+    query_entities: Optional[dict] = None
+) -> list[dict]:
     """
-    Retrieve relevant chunks from Qdrant using hybrid search:
-      1. Fetch dense vector similarity search candidates
-      2. Fetch sparse keyword search candidates (BM25)
-      3. Merge using Reciprocal Rank Fusion (RRF)
-      4. Return the top TOP_K chunks.
+    Retrieve relevant chunks from Qdrant using hierarchical hybrid search:
+      - Level 1: Exact product/model match filter
+      - Level 2: Product family match filter
+      - Level 3: Global manuals (no metadata filter)
+    At each active level, merges dense similarity and sparse keyword search (BM25) using RRF.
     """
     embedder = EmbedderService()
     vector_store = VectorStoreService()
 
-    # 1. Dense Vector Search: Fetch top 50 candidates
+    # Identify query entities if not pre-extracted
+    if not query_entities:
+        query_entities = identify_product(query)
+
     query_vector = embedder.embed_text(query)
-    dense_hits = vector_store.search(query_vector, top_k=50, source_file=source_file)
 
-    dense_candidates = []
-    for hit in dense_hits:
-        if hit.score >= SCORE_THRESHOLD:
-            dense_candidates.append({
-                "content":  hit.payload.get("content", ""),
-                "score":    round(hit.score, 4),
-                "source":   hit.payload.get("source_file", "unknown"),
-                "chunk_id": hit.payload.get("chunk_id", ""),
-            })
+    # Hierarchical search loop (Levels 1, 2, 3)
+    for level in [1, 2, 3]:
+        q_filter = resolve_metadata_filter(query_entities, filter_level=level) if query_entities else None
 
-    # 2. Sparse BM25 Search: Fetch all candidate chunks (with optional filtering)
-    all_chunks = vector_store.get_all_chunks(source_file=source_file)
-    
-    sparse_candidates = []
-    if all_chunks:
-        bm25 = BM25(all_chunks)
-        scores = bm25.get_scores(query)
+        # Skip level if filter is expected but not resolved (e.g. no product detected)
+        if level < 3 and not q_filter:
+            continue
 
-        # Pair chunks with their scores
-        chunk_scores = []
-        for chunk, score in zip(all_chunks, scores):
-            if score > 0:  # Only keep chunks with some keyword matching
-                chunk_scores.append((chunk, score))
+        # 1. Dense Vector Search: Fetch top 50 candidates
+        dense_hits = vector_store.search(
+            query_vector, 
+            top_k=50, 
+            source_file=source_file, 
+            query_filter=q_filter
+        )
 
-        # Sort descending by score and pick top 50 candidates
-        chunk_scores.sort(key=lambda x: x[1], reverse=True)
-        top_sparse = chunk_scores[:50]
+        dense_candidates = []
+        for hit in dense_hits:
+            if hit.score >= SCORE_THRESHOLD:
+                dense_candidates.append({
+                    "content":  hit.payload.get("content", ""),
+                    "score":    round(hit.score, 4),
+                    "source":   hit.payload.get("source_file", "unknown"),
+                    "chunk_id": hit.payload.get("chunk_id", ""),
+                })
 
-        for chunk, score in top_sparse:
-            sparse_candidates.append({
-                "content":  chunk["content"],
-                "score":    round(score, 4),
-                "source":   chunk["source_file"],
-                "chunk_id": chunk["chunk_id"],
-            })
+        # 2. Sparse BM25 Search: Fetch matching candidate chunks
+        all_chunks = vector_store.get_all_chunks(source_file=source_file, scroll_filter=q_filter)
+        
+        sparse_candidates = []
+        if all_chunks:
+            bm25 = BM25(all_chunks)
+            scores = bm25.get_scores(query)
 
-    # 3. Reciprocal Rank Fusion (RRF): Merge dense and sparse candidate lists
-    merged_results = rrf_merge(
-        dense_results=dense_candidates,
-        sparse_results=sparse_candidates,
-        top_k=TOP_K,
-    )
+            # Pair chunks with their scores
+            chunk_scores = []
+            for chunk, score in zip(all_chunks, scores):
+                if score > 0:  # Only keep chunks with some keyword matching
+                    chunk_scores.append((chunk, score))
 
-    return merged_results
+            # Sort descending by score and pick top 50 candidates
+            chunk_scores.sort(key=lambda x: x[1], reverse=True)
+            top_sparse = chunk_scores[:50]
+
+            for chunk, score in top_sparse:
+                sparse_candidates.append({
+                    "content":  chunk["content"],
+                    "score":    round(score, 4),
+                    "source":   chunk["source_file"],
+                    "chunk_id": chunk["chunk_id"],
+                })
+
+        # 3. Reciprocal Rank Fusion (RRF): Merge dense and sparse candidate lists
+        merged_results = rrf_merge(
+            dense_results=dense_candidates,
+            sparse_results=sparse_candidates,
+            top_k=TOP_K,
+        )
+
+        # Return results if any are found at this hierarchy level
+        if merged_results:
+            print(f"[Retriever] Found {len(merged_results)} chunks at retrieval Level {level} (filter: {q_filter is not None}).")
+            return merged_results
+
+    # Return empty if nothing passes score threshold across all levels
+    return []
+
 
