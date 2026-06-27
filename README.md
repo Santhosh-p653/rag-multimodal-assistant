@@ -1,101 +1,92 @@
-# Multimodal RAG Assistant
+# Multimodal RAG Assistant & Agentic Troubleshooting Engine
 
-A production-ready **Multimodal Retrieval-Augmented Generation (RAG) Assistant** designed to ingest technical manuals and documents, ground LLM responses strictly on uploaded content, and prevent hallucinations using a robust retrieval pipeline.
-
-This project focuses on **correct RAG engineering practices**, not just demo-level chatbot behavior.
+A production-ready **Multimodal Retrieval-Augmented Generation (RAG) Assistant** and **State-Guided Agentic Engine** designed to ingest technical manuals, perform context-aware hierarchical search, handle voice-based communications, execute multi-turn diagnostic troubleshooting workflows, and enforce security policies.
 
 ---
 
-## 🚀 Features (Current Status)
+## 🚀 Key Features
 
-- 📄 **Multimodal Document Ingestion**
-  - Supports: `PDF`, `DOCX`, `PPTX`, `XLSX`, `TXT`
-  - Uses **Microsoft MarkItDown** to convert documents into clean Markdown
-
-- ✂️ **Smart Chunking**
-  - Character-based chunking with overlap for better semantic continuity
-
-- 🧠 **Local Embeddings**
-  - Uses `sentence-transformers/all-MiniLM-L6-v2`
-  - 384-dimensional dense vectors
-  - Cosine similarity search
-
-- 📦 **In-Memory Vector Store**
-  - Powered by **Qdrant**
-  - Runs locally inside the backend process (fast dev iteration)
-
-- 🔍 **Grounded RAG Pipeline**
-  - Retrieves top-k relevant chunks
-  - Injects only retrieved context into the LLM prompt
-  - Strict system prompt prevents hallucination
-
-- 🤖 **Multi-LLM Provider Support**
-  - Primary: **Groq** (`llama-3.1-8b-instant`)
-  - Fallback: **SambaNova** (`Meta-Llama-3.1-8B-Instruct`)
-  - Auto-detection via environment variables
-
-- 🧾 **Source Attribution**
-  - Responses show document source badges
-  - If no grounded answer is found, sources are suppressed
-
-- 🐳 **Fully Dockerized**
-  - Backend + Frontend orchestrated via Docker Compose
-  - Embedding model is pre-cached during image build for fast startup
+* **📄 Multimodal Document Ingestion**: Converts uploads (`PDF`, `DOCX`, `PPTX`, `XLSX`, `TXT`) into Markdown using **Microsoft MarkItDown**, performing zero-shot product classification.
+* **🔍 Hierarchical Hybrid Search**: Searches Qdrant using a 3-level priority hierarchy (Exact Match -> Family Match -> Global Match) combining dense (MiniLM-L6) and sparse (BM25) candidates using **Reciprocal Rank Fusion (RRF)**.
+* **🎙️ Hybrid Voice Layer**: Captures audio input and routes transcription based on language hint (local Whisper for English; remote Sarvam AI Saaras v3 API for Indic languages). Synthesizes speech outputs using **edge-tts** with Microsoft Neural voices.
+* **🤖 Agentic Troubleshooting Engine**: Guides users through diagnostic trees tracking session parameters, history, and RAG context blocks across turns.
+* **🛡️ Security & Hardening**:
+  * **Rate Limiting**: Integrated `slowapi` rate limits on all major endpoints.
+  * **File Upload Guard**: Restricts upload sizes to `<= 25MB` and validates file MIME types/extensions.
+  * **Prompt Injection Protection**: Employs regex guards (`prompt_guard.py`) to block jailbreak/override instructions.
+  * **Isolated Prompts**: Isolates RAG system prompts, instructing the LLM to treat manual instructions strictly as data, not commands.
+  * **Secrets & CI**: Never tracks `.env` keys. Includes GitHub Actions workflows for quality checks (`ruff`, `black`, `bandit`) and secret scanning (`detect-secrets`).
+* **🧪 24-Test Suite**: Includes comprehensive mock-heavy unit, integration, and security checks under `backend/tests/` running instantly in any environment.
 
 ---
-
-## 🏗️ Architecture Overview
 
 ## 📁 Project Structure
 
-
+```text
 rag-multimodal-assistant/
-├── docker-compose.yml
-├── test_manual.txt
+├── docker-compose.yml         # Container configuration for Backend + Frontend
+├── contributing.md            # Onboarding & Local Setup guide
+├── architecture.md            # System architectures & Orchestration flowcharts
 ├── backend/
-│ ├── Dockerfile
-│ ├── requirements.txt
-│ ├── .env
-│ └── app/
-│ ├── main.py
-│ ├── config.py
-│ └── services/
-│ ├── parser.py
-│ ├── chunker.py
-│ ├── embedder.py
-│ ├── vector_store.py
-│ ├── retriever.py
-│ └── prompt_builder.py
-└── frontend/
-├── Dockerfile
-├── package.json
-└── src/
-├── components/
-├── lib/
-└── pages/
-
+│   ├── Dockerfile
+│   ├── requirements.txt       # Hardened requirements (slowapi, pytest, bandit, etc.)
+│   ├── .env.example           # Environment template file
+│   └── app/
+│       ├── main.py            # FastAPI Application routes & Rate limiter setup
+│       ├── config.py          # Unified Settings manager using pathlib.Path
+│       └── services/
+│           ├── parser.py      # MarkItDown document parse & metadata extractor
+│           ├── chunker.py     # Smart overlapping parser chunker
+│           ├── embedder.py    # Local SentenceTransformer embeddings
+│           ├── vector_store.py# Qdrant interface (filters, counts, scrolls)
+│           ├── hybrid_search.py# In-memory BM25 sparse search and RRF
+│           ├── retriever.py   # 3-level prioritized retriever
+│           ├── audio.py       # Speech Transcriber (Whisper/Sarvam) & TTS (edge-tts)
+│           ├── prompt_guard.py# Prompt injection filter
+│           └── workflow_manager.py# Troubleshooting state machine
+└── frontend/                  # Next.js UI app codebase
+```
 
 ---
 
-## ⚙️ Configuration
+## 🏗️ Architecture & Orchestration
 
-### Backend Environment Variables
+For in-depth explanations, mermaid data flows, and state transition flowcharts, see:
+* **[architecture.md](architecture.md)**
 
-Create `backend/.env`:
+---
 
+## ⚙️ Configuration & Run
+
+### 1. Setup Environment
+Create a `backend/.env` file from the example template:
+```bash
+cp backend/.env.example backend/.env
+```
+Fill in the API keys:
 ```env
-GROQ_API_KEY=your_groq_api_key
-SAMBANOVA_API_KEY=your_sambanova_api_key
+GROQ_API_KEY=your_groq_key
+SAMBANOVA_API_KEY=your_sambanova_key
+SARVAM_API_KEY=your_sarvam_key
 ```
 
-The backend automatically selects the available provider.
+### 2. Launch with Docker Compose
+To build and run the entire ecosystem (FastAPI Backend + Next.js Frontend + pre-cached embedding weights) locally:
+```bash
+docker compose up --build
+```
 
-▶️ Running the Project
+### 3. Verification & Testing
+To run the 24-test suite locally inside the backend directory:
+```bash
+cd backend
+.\venv\Scripts\pytest -vv
+```
 
-From the project root:
+---
 
--  docker compose up --build
-## Access Points
-- Backend Health: http://localhost:8000/health
-- Frontend UI: http://localhost:3000
-- Admin Upload Panel: http://localhost:3000/admin
+## 🚀 Access Points
+* **Frontend UI**: http://localhost:3000
+* **Admin Upload Panel**: http://localhost:3000/admin
+* **Backend Docs / API**: http://localhost:8000/docs
+* **Health endpoint**: http://localhost:8000/health
