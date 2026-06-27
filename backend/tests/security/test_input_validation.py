@@ -1,6 +1,5 @@
-import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import sys
 import os
 
@@ -33,13 +32,13 @@ def test_troubleshoot_constraints():
     # Oversized message in troubleshoot should be rejected
     response = client.post(
         "/troubleshoot",
-        json={"session_id": "ok_sess", "message": "A" * 4001}
+        json={"session_id": "ok_sess", "message": "A" * 4001},
     )
     assert response.status_code == 422
 
     # Oversized session_id (limit 100) should be rejected
     response2 = client.post(
         "/troubleshoot",
-        json={"session_id": "X" * 101, "message": "Help"}
+        json={"session_id": "X" * 101, "message": "Help"},
     )
     assert response2.status_code == 422
