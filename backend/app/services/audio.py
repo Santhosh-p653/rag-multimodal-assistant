@@ -39,17 +39,20 @@ _whisper_model = None
 
 
 def get_whisper_model():
+    """Singleton for local Whisper Model on CPU."""
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
         print("[Audio] Loading local faster-whisper ('small', int8, CPU)...")
         _whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+        print("[Audio] local faster-whisper model ready.")
     return _whisper_model
 
 
 def convert_to_wav(input_path: str) -> str:
     """
     Transcode uploaded audio file to standard 16kHz mono WAV using FFmpeg.
+    Ensures compatibility with Whisper and Sarvam AI.
     """
     temp_dir = tempfile.gettempdir()
     output_path = os.path.join(
@@ -70,19 +73,21 @@ def convert_to_wav(input_path: str) -> str:
     ]
 
     try:
-        # Safer subprocess usage (Bandit compliant)
         subprocess.run(
             cmd,
+            shell=False,  # explicit safety signal for Bandit
+            check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
         )
         return output_path
+
     except subprocess.CalledProcessError as e:
         raise RuntimeError("Audio transcoding failed") from e
 
 
 async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
+    """Hybrid STT: local Whisper for English, Sarvam API for others."""
     transcoded_path = convert_to_wav(file_path)
 
     try:
