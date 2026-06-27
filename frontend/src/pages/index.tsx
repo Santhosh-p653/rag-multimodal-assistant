@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, FileText, Wifi, WifiOff, Trash2, Sparkles, AlertCircle, Database } from "lucide-react";
+import { MessageSquare, FileText, Wifi, WifiOff, Trash2, Sparkles, AlertCircle, Database, Volume2, VolumeX } from "lucide-react";
 import { ChatWindow } from "../components/ChatWindow";
 import { ChatInput } from "../components/ChatInput";
 import { Message } from "../components/MessageBubble";
-import { sendMessage } from "../lib/api";
+import { sendMessage, fetchFiles, transcribeAudio } from "../lib/api";
 
 interface HealthInfo {
   status: string;
@@ -18,6 +18,10 @@ export default function Home() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [hintLang, setHintLang] = useState("auto");
 
   // Check backend health on mount
   useEffect(() => {
@@ -38,6 +42,21 @@ export default function Home() {
     checkHealth();
   }, []);
 
+  // Fetch unique documents when backend becomes online
+  useEffect(() => {
+    async function loadFiles() {
+      try {
+        const fileList = await fetchFiles();
+        setFiles(fileList);
+      } catch (err) {
+        console.error("Failed to load documents:", err);
+      }
+    }
+    if (backendOnline) {
+      loadFiles();
+    }
+  }, [backendOnline]);
+
   const handleSend = async (text: string) => {
     setErrorMessage(null);
     const userMsg: Message = {
@@ -50,7 +69,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const data = await sendMessage(text);
+      const data = await sendMessage(text, selectedFile);
       const assistantMsg: Message = {
         id: Math.random().toString(36).substring(7),
         sender: "assistant",
@@ -70,6 +89,23 @@ export default function Home() {
           timestamp: new Date(),
         },
       ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAudioComplete = async (audioBlob: Blob) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await transcribeAudio(audioBlob, hintLang);
+      if (data.text && data.text.trim()) {
+        await handleSend(data.text);
+      } else {
+        setErrorMessage("Speech not recognized. Please try again or speak more clearly.");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to transcribe audio.");
     } finally {
       setIsLoading(false);
     }
@@ -171,6 +207,36 @@ export default function Home() {
             <div className="md:hidden">
               {backendOnline ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-rose-400" />}
             </div>
+            {backendOnline && (
+              <button
+                onClick={() => setIsMuted(!isMuted)}
+                className={`p-2 rounded-lg border transition-all duration-200 ${
+                  isMuted
+                    ? "border-slate-800 bg-slate-900/20 text-slate-500 hover:text-slate-350 hover:bg-slate-900/40"
+                    : "border-violet-500/30 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20"
+                }`}
+                title={isMuted ? "Unmute voice responses" : "Mute voice responses"}
+              >
+                {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            {backendOnline && (
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-slate-500 hidden sm:inline">Source:</span>
+                <select
+                  value={selectedFile || ""}
+                  onChange={(e) => setSelectedFile(e.target.value || null)}
+                  className="bg-slate-900 border border-slate-800 text-xs text-slate-350 px-2 py-1 rounded-md focus:outline-none focus:border-violet-500/50 transition-all max-w-[120px] sm:max-w-[180px] truncate"
+                >
+                  <option value="">All Manuals</option>
+                  {files.map((file) => (
+                    <option key={file} value={file}>
+                      {file}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {messages.length > 0 && (
               <button onClick={clearChat} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 bg-slate-900/40 text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -187,11 +253,36 @@ export default function Home() {
           </div>
         )}
 
-        <ChatWindow messages={messages} isLoading={isLoading} />
+        <ChatWindow messages={messages} isLoading={isLoading} isMuted={isMuted} />
 
         <footer className="p-6 md:p-8 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md shrink-0">
-          <div className="max-w-4xl mx-auto">
-            <ChatInput onSend={handleSend} disabled={isLoading} />
+          <div className="max-w-4xl mx-auto space-y-3">
+            {backendOnline && (
+              <div className="flex justify-between items-center px-1">
+                <div className="flex items-center space-x-2 text-[11px]">
+                  <span className="text-slate-500 font-medium">Transcribe Language:</span>
+                  <select
+                    value={hintLang}
+                    onChange={(e) => setHintLang(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 text-slate-350 px-2 py-1 rounded-md focus:outline-none focus:border-violet-500/50 transition-all cursor-pointer"
+                  >
+                    <option value="auto">🗣️ Auto-detect (Indic / English)</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="hi">🇮🇳 Hindi</option>
+                    <option value="ta">🇮🇳 Tamil</option>
+                    <option value="te">🇮🇳 Telugu</option>
+                    <option value="kn">🇮🇳 Kannada</option>
+                    <option value="ml">🇮🇳 Malayalam</option>
+                    <option value="bn">🇮🇳 Bengali</option>
+                    <option value="mr">🇮🇳 Marathi</option>
+                  </select>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">
+                  {isMuted ? "🔇 Voice response off" : "🔊 Voice response on"}
+                </div>
+              </div>
+            )}
+            <ChatInput onSend={handleSend} onAudioComplete={handleAudioComplete} disabled={isLoading} />
             <p className="text-[10px] text-center text-slate-500 mt-2.5">
               Answers are grounded in your uploaded documents. Upload manuals via the admin panel.
             </p>

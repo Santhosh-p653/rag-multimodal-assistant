@@ -2,7 +2,7 @@
 main.py — FastAPI application for the Multimodal RAG Assistant.
 Phase 3: Full RAG pipeline — embed → retrieve → prompt → LLM → grounded answer.
 """
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -30,6 +30,7 @@ parser_service = ParserService()
 
 class ChatRequest(BaseModel):
     message: str
+    source_file: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
@@ -45,6 +46,10 @@ class UploadResponse(BaseModel):
     markdown_file: str
     chunks_ingested: int
     status: str
+
+class SpeakRequest(BaseModel):
+    text: str
+    language: Optional[str] = "en"
 
 # ─── LLM Helper ─────────────────────────────────────────────────────────────
 
@@ -94,6 +99,18 @@ def health():
     }
 
 
+@app.get("/files")
+def get_files():
+    """Retrieve all unique source files loaded in the vector store."""
+    from app.services.vector_store import VectorStoreService
+    vs = VectorStoreService()
+    try:
+        files = vs.get_unique_sources()
+        return {"files": files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
@@ -107,7 +124,7 @@ async def chat(request: ChatRequest):
     fallback = "I could not find that information in the uploaded manuals."
 
     # Step 1: Retrieve context
-    chunks = retrieve_context(request.message)
+    chunks = retrieve_context(request.message, source_file=request.source_file)
 
     # Step 2: Fallback if nothing retrieved
     if not chunks:
@@ -157,5 +174,42 @@ async def upload_file(file: UploadFile = File(...)):
             chunks_ingested=result["chunks_ingested"],
             status="processed",
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/transcribe")
+async def transcribe(
+    audio: UploadFile = File(...),
+    hint_lang: str = Form("auto")
+):
+    """Transcribe uploaded audio file using hybrid local/remote engines."""
+    import tempfile
+    import os
+
+    # Write to a temporary file
+    suffix = os.path.splitext(audio.filename or ".wav")[1] or ".wav"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(await audio.read())
+        tmp_path = tmp.name
+
+    try:
+        from app.services.audio import transcribe_audio
+        result = await transcribe_audio(tmp_path, hint_lang)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+@app.post("/speak")
+async def speak(request: SpeakRequest):
+    """Generate text-to-speech MP3 stream using edge-tts."""
+    try:
+        from app.services.audio import speak_text
+        audio_bytes = await speak_text(request.text, request.language)
+        return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

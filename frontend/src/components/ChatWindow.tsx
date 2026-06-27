@@ -5,9 +5,10 @@ import { HelpCircle, Sparkles } from "lucide-react";
 interface ChatWindowProps {
   messages: Message[];
   isLoading?: boolean;
+  isMuted?: boolean;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isMuted = true }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Automatically scroll to bottom when messages or loading state changes
@@ -37,7 +38,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) =
           </div>
         </div>
       ) : (
-        messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
+        messages.map((msg) => <MessageBubble key={msg.id} message={msg} isMuted={isMuted} />)
       )}
 
       {/* Loading State Bubble */}

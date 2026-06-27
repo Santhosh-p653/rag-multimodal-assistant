@@ -9,6 +9,9 @@ from qdrant_client.models import (
     Distance,
     VectorParams,
     PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
 )
 from app.config import QDRANT_COLLECTION, TOP_K
 
@@ -72,23 +75,85 @@ class VectorStoreService:
         self.client.upsert(collection_name=QDRANT_COLLECTION, points=points)
         print(f"[VectorStore] Ingested {len(points)} chunks from '{chunks[0]['source_file']}'.")
 
-    def search(self, query_vector: list[float], top_k: int = TOP_K) -> list:
+    def search(
+        self, 
+        query_vector: list[float], 
+        top_k: int = TOP_K, 
+        source_file: str = None
+    ) -> list:
         """
-        Search the collection and return top-K results.
+        Search the collection and return top-K results, optionally filtered by source_file.
         Uses query_points() API available in qdrant-client >= 1.7.
         Each result has .score and .payload attributes.
         """
         if not self._collection_ready:
             return []
 
+        query_filter = None
+        if source_file:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="source_file",
+                        match=MatchValue(value=source_file),
+                    )
+                ]
+            )
+
         response = self.client.query_points(
             collection_name=QDRANT_COLLECTION,
             query=query_vector,
+            query_filter=query_filter,
             limit=top_k,
             with_payload=True,
         )
         # response.points is a list of ScoredPoint
         return response.points
+
+    def get_all_chunks(self, source_file: str = None) -> list[dict]:
+        """
+        Retrieve all chunks from Qdrant, optionally filtered by source_file.
+        Returns a list of dictionaries with 'chunk_id', 'content', and 'source_file'.
+        """
+        if not self._collection_ready:
+            return []
+
+        scroll_filter = None
+        if source_file:
+            scroll_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="source_file",
+                        match=MatchValue(value=source_file),
+                    )
+                ]
+            )
+
+        # Scroll to get all matching points (limit set high to fetch all chunks in memory)
+        response = self.client.scroll(
+            collection_name=QDRANT_COLLECTION,
+            scroll_filter=scroll_filter,
+            limit=10000,
+            with_payload=True,
+            with_vectors=False,
+        )
+        
+        points, _ = response
+        
+        chunks = []
+        for point in points:
+            chunks.append({
+                "chunk_id":    point.payload.get("chunk_id", ""),
+                "content":     point.payload.get("content", ""),
+                "source_file": point.payload.get("source_file", "unknown"),
+            })
+        return chunks
+
+    def get_unique_sources(self) -> list[str]:
+        """Retrieve all unique source filenames from the Qdrant database."""
+        chunks = self.get_all_chunks()
+        sources = list(set(c["source_file"] for c in chunks if c.get("source_file")))
+        return sorted(sources)
 
     def count(self) -> int:
         """Return total number of vectors stored."""

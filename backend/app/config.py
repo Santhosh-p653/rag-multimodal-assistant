@@ -11,6 +11,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 # --- LLM Provider ---
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 SAMBANOVA_API_KEY: str = os.getenv("SAMBANOVA_API_KEY", "")
+SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "")
 
 # Auto-detect which provider to use (Groq preferred)
 if GROQ_API_KEY:

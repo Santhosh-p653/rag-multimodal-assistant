@@ -17,11 +17,14 @@ export interface UploadResponse {
  * Sends a chat message to the RAG backend.
  * Returns a grounded answer and list of source documents.
  */
-export async function sendMessage(message: string): Promise<ChatResponse> {
+export async function sendMessage(
+  message: string,
+  sourceFile: string | null = null
+): Promise<ChatResponse> {
   const response = await fetch(`${API_URL}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, source_file: sourceFile }),
   });
 
   if (!response.ok) {
@@ -30,6 +33,18 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
   }
 
   return response.json();
+}
+
+/**
+ * Fetches the list of unique uploaded files from the backend.
+ */
+export async function fetchFiles(): Promise<string[]> {
+  const response = await fetch(`${API_URL}/files`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch documents");
+  }
+  const data = await response.json();
+  return data.files || [];
 }
 
 /**
@@ -72,4 +87,47 @@ export function uploadDocument(
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.send(formData);
   });
+}
+
+/**
+ * Sends recorded audio to the STT /transcribe endpoint.
+ * Returns transcription text and detected language.
+ */
+export async function transcribeAudio(
+  audioBlob: Blob,
+  hintLang: string
+): Promise<{ text: string; detected_language: string }> {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "query.wav");
+  formData.append("hint_lang", hintLang);
+
+  const response = await fetch(`${API_URL}/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Transcription failed" }));
+    throw new Error(errorData.detail || "Failed to transcribe audio query");
+  }
+
+  return response.json();
+}
+
+/**
+ * Sends text to the TTS /speak endpoint and returns the audio object URL.
+ */
+export async function speakText(text: string, language: string): Promise<string> {
+  const response = await fetch(`${API_URL}/speak`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to generate speech");
+  }
+
+  const audioBlob = await response.blob();
+  return URL.createObjectURL(audioBlob);
 }

@@ -9,3 +9,7 @@ groq
 openai
 python-dotenv
 torch
+faster-whisper
+edge-tts
+langdetect
+httpx
