@@ -1,6 +1,5 @@
-import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import sys
 import os
 
@@ -31,7 +30,7 @@ def test_prompt_injection_detection():
 
         response_ts = client.post(
             "/troubleshoot",
-            json={"session_id": "test_sess", "message": p}
+            json={"session_id": "test_sess", "message": p},
         )
         assert response_ts.status_code == 400
         assert "injection" in response_ts.json()["detail"].lower()
@@ -39,7 +38,9 @@ def test_prompt_injection_detection():
 
 def test_safe_messages():
     with patch("app.main.retrieve_context") as mock_ret, patch("app.main.call_llm") as mock_llm:
-        mock_ret.return_value = [{"chunk_id": "c1", "content": "RAG data", "source": "m.txt"}]
+        mock_ret.return_value = [
+            {"chunk_id": "c1", "content": "RAG data", "source": "m.txt"}
+        ]
         mock_llm.return_value = "This is a safe response"
 
         response = client.post("/chat", json={"message": "How do I turn it on?"})
