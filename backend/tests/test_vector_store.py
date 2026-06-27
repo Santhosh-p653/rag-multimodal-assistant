@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import sys
 import os
 
@@ -32,7 +31,7 @@ def test_vector_store_operations():
     # Run checks
     assert service.count() == 42
 
-    hits = service.search(query_vector=[0.1]*384, top_k=5)
+    hits = service.search(query_vector=[0.1] * 384, top_k=5)
     assert len(hits) == 1
     assert hits[0].score == 0.95
 
