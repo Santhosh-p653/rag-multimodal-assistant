@@ -10,12 +10,21 @@ During ingestion, documents are parsed, categorized using zero-shot classificati
 
 ```mermaid
 graph TD
-    A[Raw Upload: PDF/DOCX/PPTX/XLSX/TXT] -->|MIME & Extension Guard| B(Size Validation <= 25MB)
-    B -->|Passed| C[MarkItDown Conversion]
+    A[Raw Upload: PDF/DOCX/TXT] -->|MIME & Extension Guard| B(Size Validation <= 25MB)
+    B -->|Passed| C[MarkItDown Text Extraction]
+    B -->|If PDF| V[PyMuPDF Image & Vector Rendering]
+    
     C -->|Markdown Text| D[Product Identifier Zero-Shot Classification]
-    D -->|Extract Metadata: product, family, category, version| E[Overlapping Character Chunker]
-    E -->|CHUNK_SIZE=500, OVERLAP=100| F[SentenceTransformers Vectorizer]
-    F -->|384-dim Dense Vectors| G[(Qdrant Vector DB Ingestion)]
+    D --> E[Overlapping Character Chunker]
+    
+    V -->|Extract Raster & Render Vector Paths| X[Image Filter: Dimensions/Aspect/pHash]
+    X -->|Save PNG & Extract Nearby Text| Y[Embed Nearby Text]
+    
+    E -->|Chunk Content| F[SentenceTransformers Vectorizer]
+    F -->|384-dim Dense Vectors| Z[Semantic Image-Text Association]
+    Y --> Z
+    
+    Z -->|Attach image_ids to Chunks via Cosine Sim| G[(Qdrant Vector DB Ingestion)]
 ```
 
 ### Payloads Stored in Qdrant
@@ -137,9 +146,43 @@ stateDiagram-v2
 
 ---
 
-## 5. Phase 1: Query Understanding & Relevance Routing (WIP)
+## 5. Query Understanding & Context Reconstruction
 
-A pre-retrieval layer (`query_understanding.py`) uses an LLM to evaluate the user's intent, extract entities, normalize text, and assign an `input_confidence` (`HIGH`, `MEDIUM`, `LOW`). Post-retrieval, a relevance guard (`retriever.py`) classifies the quality of context matched using the `rrf_score` of the top document compared against `RRF_HIGH_THRESHOLD` and `RRF_LOW_THRESHOLD` configs to assign a `retrieval_confidence`. Based on these two confidences, `/chat` dynamically routes between asking targeted clarification questions, hedging answers, serving grounded answers, or falling back.
+To handle vague follow-ups, the system analyzes input confidence and reconstructs queries using session memory before retrieval.
+
+```mermaid
+graph TD
+    A[User Input] --> B{Pending Clarification in Session?}
+    B -->|Yes| C[Reconstruct Context Node]
+    B -->|No| D[Analyze Input Node]
+    C --> D
+    
+    D -->|LLM extracts Intent, Entities, Ambiguities| E{Input Confidence}
+    E -->|HIGH or unambiguous MEDIUM| F[Proceed to Retrieval]
+    E -->|LOW or ambiguous MEDIUM| G[Clarify / Fallback Node]
+    
+    G --> H[Return Clarification Question to UI]
+```
+
+---
+
+## 5b. Visual Information Retrieval Filtering
+
+Extracted images must pass a strict runtime confidence filter to avoid hallucinating unrelated visuals.
+
+```mermaid
+graph TD
+    A[RRF Ranked Chunks] --> B{Retrieval Confidence}
+    B -->|LOW| C[Return No Images]
+    B -->|HIGH| D[Extract associated image_ids]
+    B -->|MEDIUM| E[Extract associated image_ids]
+    
+    D --> F[Limit to Top 3 Images]
+    
+    E --> G[Strict Semantic Re-check]
+    G -->|chunk_embedding vs image_nearby_text >= 0.65| H[Limit to Top 1 Image]
+    G -->|Failed Threshold| C
+```
 
 ---
 
@@ -166,25 +209,33 @@ For ad-hoc queries combining ingestion and retrieval, the system routes tasks th
 graph TD
     Start([Start Route]) --> Router{Ingest Router}
     
-    Router -->|URL input| URL[url_ingest: Scraping BS4]
-    Router -->|File input| File[file_ingest: MarkItDown Parse]
-    Router -->|No Ingestion input| ID[identify_product: Product Matching]
+    Router -->|URL| URL[url_ingest]
+    Router -->|File| File[file_ingest]
+    Router -->|No Ingestion| CheckClar[check_clarification_node]
     
-    URL --> VC[version_check: Hash matching SQLite]
+    URL --> VC[version_check]
     File --> VC
     
-    VC -->|Hash Changed| Embed[embed_and_store: Chunk & Index Qdrant]
-    VC -->|Hash Unchanged| ID
-    Embed --> ID
+    VC -->|Hash Changed| Embed[embed_and_store]
+    VC -->|Unchanged| CheckClar
+    Embed --> CheckClar
     
-    ID -->|Ambiguous Product| Format[format_response: Clarification Ask]
-    ID -->|Resolved Product| Classify[classify_mode: QA vs. Troubleshoot]
+    CheckClar -->|Pending Clarification| Recon[reconstruct_context_node]
+    CheckClar -->|No Pending| Analyze[analyze_input_node]
+    Recon --> Analyze
     
-    Classify --> Retrieve[retrieve: RRF Hybrid Retrieval]
-    Retrieve --> Gen[generate: QA / Structured JSON Steps]
-    Gen --> Format
+    Analyze -->|High/Unambig| ID[identify_product]
+    Analyze -->|Low/Ambig| Clarify[clarify_or_fallback_node]
     
-    Format --> End([END])
+    ID --> Classify[classify_mode: QA / Troubleshoot]
+    Classify --> Retrieve[retrieve]
+    
+    Retrieve -->|High/Medium| Image[image_filtering_node]
+    Retrieve -->|Low| Retry[retry_retrieval_node]
+    
+    Image --> Gen[generate]
+    Gen --> Format[format_response]
+    Clarify --> Format
 ```
 
 ### Agent State Schema

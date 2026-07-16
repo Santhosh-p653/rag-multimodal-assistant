@@ -6,11 +6,13 @@ A production-ready **Multimodal Retrieval-Augmented Generation (RAG) Assistant**
 
 ## 🚀 Key Features
 
-* **📄 Multimodal Document Ingestion**: Converts uploads (`PDF`, `DOCX`, `PPTX`, `XLSX`, `TXT`) into Markdown using **Microsoft MarkItDown**, performing zero-shot product classification.
+* **📄 Multimodal Document Ingestion**: Converts uploads (`PDF`, `DOCX`, `PPTX`, `XLSX`, `TXT`) into Markdown using **Microsoft MarkItDown**, performing zero-shot product classification. Extracts raster images and natively renders vector diagrams (via PyMuPDF), associating them with text chunks using semantic cosine similarity.
+* **🖼️ Visual Information Retrieval**: Automatically retrieves and strictly filters contextual visual diagrams based on the mathematical confidence of the retrieved text chunk, serving images directly alongside chat responses.
 * **🔍 Hierarchical Hybrid Search**: Searches Qdrant using a 3-level priority hierarchy (Exact Match -> Family Match -> Global Match) combining dense (MiniLM-L6) and sparse (BM25) candidates using **Reciprocal Rank Fusion (RRF)**.
+* **🧠 Context Reconstruction & Clarification**: Employs an LLM query-understanding layer to gauge user intent, reconstruct ambiguous follow-up queries using session state, and gracefully trigger clarification dialogues when input confidence is low.
 * **🎙️ Hybrid Voice Layer**: Captures audio input and routes transcription based on language hint (local Whisper for English; remote Sarvam AI Saaras v3 API for Indic languages). Synthesizes speech outputs using **edge-tts** with Microsoft Neural voices.
 * **🤖 Agentic Troubleshooting Engine**: Guides users through diagnostic trees tracking session parameters, history, and RAG context blocks across turns.
-* **🦜 Unified Agentic Ingestion & Retrieval**: Uses LangGraph `StateGraph` to scrap URLs (BeautifulSoup), cache versions via SQLite file hashes, resolve fuzzy product IDs, classify queries (`qa` vs. `troubleshoot`), and generate troubleshooting steps through a single `POST /agent/run` API.
+* **🦜 Unified Agentic Flow**: Uses LangGraph `StateGraph` to orchestrate ingestion, query analysis, fuzzy product ID resolution, RRF retrieval, image filtering, and LLM generation through a single robust pipeline.
 * **🛡️ Security & Hardening**:
   * **Rate Limiting**: Integrated `slowapi` rate limits on all major endpoints.
   * **File Upload Guard**: Restricts upload sizes to `<= 25MB` and validates file MIME types/extensions.
@@ -51,10 +53,13 @@ rag-multimodal-assistant/
 
 ---
 
-## 🏗️ Architecture & Orchestration
+## 🏗️ Architecture & Documentation
 
-For in-depth explanations, mermaid data flows, and state transition flowcharts, see:
-* **[architecture.md](architecture.md)**
+For in-depth explanations, mermaid data flows, and state transition flowcharts, see the detailed documentation files:
+
+1. **[Setup Instructions (setup.md)](setup.md)**: Detailed step-by-step instructions on how to configure API keys, install dependencies, and launch the application locally or via Docker.
+2. **[Architecture Specifications (architecture.md)](architecture.md)**: Technical breakdown, Mermaid flowcharts, and schema definitions for the LangGraph state machine, fusion algorithm, and voice layer.
+3. **[Project Context & Lifecycle (context.md)](context.md)**: A deep-dive micro-observation narrative detailing exactly what happens to a document from upload to ingestion, and how a user's prompt is validated, reconstructed, and executed.
 
 ---
 
