@@ -54,6 +54,8 @@ class AgentState(TypedDict):
     clarification_needed: bool
     retrieved_chunks: List[Dict[str, Any]]
     sources: List[Dict[str, Any]]
+    retrieved_images: List[Dict[str, Any]]
+    images: List[Dict[str, Any]]
     mode: Literal["qa", "troubleshoot"]
     answer: str
     steps: Optional[List[str]]
@@ -434,8 +436,114 @@ def retrieve(state: AgentState) -> Dict[str, Any]:
     return {
         "retrieved_chunks": chunks,
         "sources": unique_sources,
-        "retrieval_confidence": retrieval_confidence
+        "retrieval_confidence": retrieval_confidence,
+        "retrieved_images": []
     }
+
+def image_filtering_node(state: AgentState) -> Dict[str, Any]:
+    from app.services.image_filters import (
+        MAX_RETRIEVED_IMAGES_HIGH, 
+        MAX_RETRIEVED_IMAGES_MEDIUM, 
+        MEDIUM_CAPTION_MIN_SIMILARITY,
+        MEDIUM_NEARBY_MIN_SIMILARITY
+    )
+    from app.config import settings
+    import os
+    import json
+    import numpy as np
+    from app.services.embedder import EmbedderService
+    
+    conf = state.get("retrieval_confidence", "LOW")
+    chunks = state.get("retrieved_chunks", [])
+    
+    if conf == "LOW" or not chunks:
+        return {"images": []}
+        
+    # Gather candidate images from chunks
+    candidates = []
+    # Load metadata for documents seen
+    doc_metadata = {}
+    
+    for rank, chunk in enumerate(chunks):
+        if not chunk.get("image_ids"):
+            continue
+            
+        doc_id = chunk.get("source", "").replace(".pdf", "").replace(".md", "")
+        if doc_id not in doc_metadata:
+            md_path = os.path.join(str(settings.OUTPUT_DIR), "images", doc_id, "metadata.json")
+            if os.path.exists(md_path):
+                with open(md_path, "r", encoding="utf-8") as f:
+                    doc_metadata[doc_id] = json.load(f)
+            else:
+                doc_metadata[doc_id] = []
+                
+        # Find image in metadata
+        for img_id in chunk["image_ids"]:
+            img_data = next((item for item in doc_metadata[doc_id] if item["image_id"] == img_id), None)
+            if img_data:
+                candidates.append({
+                    "chunk_rank": rank,
+                    "chunk_emb": chunk.get("embedding"),
+                    "chunk_content": chunk.get("content"),
+                    "image_data": img_data
+                })
+                
+    if not candidates:
+        return {"images": []}
+        
+    # Deduplicate candidates
+    unique_candidates = []
+    seen_ids = set()
+    for c in candidates:
+        i_id = c["image_data"]["image_id"]
+        if i_id not in seen_ids:
+            seen_ids.add(i_id)
+            unique_candidates.append(c)
+            
+    # If MEDIUM, strictly filter
+    valid_candidates = []
+    if conf == "MEDIUM":
+        embedder = EmbedderService()
+        for c in unique_candidates:
+            # Re-check similarity specifically for strict threshold
+            img_text = c["image_data"].get("nearby_text", "")
+            if not img_text:
+                continue
+            
+            i_emb = np.array(embedder.embed_text(img_text))
+            
+            c_emb = c.get("chunk_emb")
+            if not c_emb or len(c_emb) == 0:
+                c_emb = embedder.embed_text(c["chunk_content"])
+            c_emb = np.array(c_emb)
+            
+            sim = np.dot(c_emb, i_emb) / (np.linalg.norm(c_emb) * np.linalg.norm(i_emb) + 1e-10)
+            
+            if sim >= MEDIUM_NEARBY_MIN_SIMILARITY or sim >= MEDIUM_CAPTION_MIN_SIMILARITY:
+                valid_candidates.append(c)
+    else:
+        valid_candidates = unique_candidates
+        
+    # Sort by chunk rank (lowest is best)
+    valid_candidates.sort(key=lambda x: x["chunk_rank"])
+    
+    # Cap limit
+    limit = MAX_RETRIEVED_IMAGES_HIGH if conf == "HIGH" else MAX_RETRIEVED_IMAGES_MEDIUM
+    final_candidates = valid_candidates[:limit]
+    
+    # Format for frontend
+    images_out = []
+    for c in final_candidates:
+        img = c["image_data"]
+        images_out.append({
+            "image_id": img["image_id"],
+            "document_id": img["document_id"],
+            "page": img["page_number"],
+            "caption": img.get("caption", "Supporting Document Visual"),
+            "url": f"/document-images/{img['document_id']}/{img['image_id']}"
+        })
+        
+    return {"images": images_out}
 
 def generate(state: AgentState) -> Dict[str, Any]:
     chunks = state["retrieved_chunks"]
@@ -518,7 +626,8 @@ def format_response(state: AgentState) -> Dict[str, Any]:
         "clarification_needed": clarification_needed,
         "version_info": state.get("version_info"),
         "clarification_question": state.get("clarification_question"),
-        "status": status
+        "status": status,
+        "images": state.get("images") or []
     }
 
 # --- Graph Assembly ---
@@ -545,14 +654,16 @@ def pending_router(state: AgentState) -> str:
     return "analyze_input_node"
     
 def input_confidence_router(state: AgentState) -> str:
-    if state.get("input_confidence") == "HIGH":
+    conf = state.get("input_confidence")
+    ambiguities = state.get("understood_data", {}).get("ambiguities", [])
+    if conf == "HIGH" or (conf == "MEDIUM" and not ambiguities):
         return "identify_product"
     return "clarify_or_fallback_node"
     
 def retrieval_confidence_router(state: AgentState) -> str:
     conf = state.get("retrieval_confidence", "LOW")
     if conf in ["HIGH", "MEDIUM"]:
-        return "generate"
+        return "image_filtering_node"
     if state.get("retrieval_retries", 0) < MAX_RETRIEVAL_RETRIES:
         return "retry_retrieval_node"
     return "clarify_or_fallback_node"
@@ -580,6 +691,7 @@ def build_agent_graph():
     workflow.add_node("identify_product", identify_product)
     workflow.add_node("classify_mode", classify_mode)
     workflow.add_node("retrieve", retrieve)
+    workflow.add_node("image_filtering_node", image_filtering_node)
     workflow.add_node("generate", generate)
     workflow.add_node("format_response", format_response)
 
@@ -641,12 +753,13 @@ def build_agent_graph():
         "retrieve",
         retrieval_confidence_router,
         {
-            "generate": "generate",
+            "image_filtering_node": "image_filtering_node",
             "retry_retrieval_node": "retry_retrieval_node",
             "clarify_or_fallback_node": "clarify_or_fallback_node"
         }
     )
     
+    workflow.add_edge("image_filtering_node", "generate")
     workflow.add_edge("retry_retrieval_node", "retrieve")
     workflow.add_edge("clarify_or_fallback_node", "format_response")
 

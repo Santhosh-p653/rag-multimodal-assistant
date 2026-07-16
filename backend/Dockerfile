@@ -23,10 +23,7 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-RUN sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list 2>/dev/null || true \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+# No longer installing system ffmpeg since we use imageio-ffmpeg
 
 COPY --from=builder /install /usr/local
 COPY app/ ./app/

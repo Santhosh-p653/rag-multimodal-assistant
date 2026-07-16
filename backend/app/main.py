@@ -80,6 +80,7 @@ class AgentResponse(BaseModel):
     version_info: Optional[str] = None
     clarification_question: Optional[str] = None
     status: Optional[str] = None
+    images: list[dict] = []
 
 # ─── LLM Helper ─────────────────────────────────────────────────────────────
 
@@ -139,6 +140,14 @@ def get_files():
         return {"files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+
+@app.get("/debug_qdrant")
+def debug_qdrant():
+    from app.services.vector_store import VectorStoreService
+    vs = VectorStoreService()
+    chunks = vs.get_all_chunks(source_file="test1.pdf")
+    has_images = [c for c in chunks if c.get("image_ids")]
+    return {"total": len(chunks), "with_images": len(has_images), "sample": has_images[0] if has_images else None}
 
 
 @app.get("/products")
@@ -426,6 +435,56 @@ async def transcribe(
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@app.get("/document-images/{document_id}/{image_id}")
+@limiter.limit("60/minute")
+async def get_document_image(request: Request, document_id: str, image_id: str):
+    """Secure endpoint for serving document images."""
+    import re
+    import os
+    import json
+    from fastapi.responses import FileResponse
+    from app.config import settings
+
+    # 1. Strict regex validation
+    pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
+    if not pattern.match(document_id) or not pattern.match(image_id):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # 2. Canonical path prefix verification
+    images_root = os.path.abspath(os.path.join(str(settings.OUTPUT_DIR), "images"))
+    target_dir = os.path.abspath(os.path.join(images_root, document_id))
+    
+    if not target_dir.startswith(images_root):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # 3. Lookup in metadata store
+    metadata_path = os.path.join(target_dir, "metadata.json")
+    if not os.path.exists(metadata_path):
+        raise HTTPException(status_code=404, detail="Not found")
+        
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+        
+    # Find image path from metadata
+    img_record = next((item for item in metadata if item.get("image_id") == image_id), None)
+    if not img_record or not img_record.get("image_path"):
+        raise HTTPException(status_code=404, detail="Not found")
+        
+    final_path = os.path.abspath(img_record["image_path"])
+    
+    # 4. Final path prefix check to prevent traversal in metadata
+    if not final_path.startswith(target_dir):
+        raise HTTPException(status_code=404, detail="Not found")
+        
+    if not os.path.exists(final_path):
+        raise HTTPException(status_code=404, detail="Not found")
+        
+    return FileResponse(final_path)
 
 
 @app.post("/speak")

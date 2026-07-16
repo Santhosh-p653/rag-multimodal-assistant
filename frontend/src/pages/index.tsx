@@ -75,6 +75,7 @@ export default function Home() {
         sender: "assistant",
         text: data.answer,
         sources: data.sources,
+        images: data.images,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);

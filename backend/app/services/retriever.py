@@ -52,6 +52,8 @@ def retrieve_context(
                     "score":    round(hit.score, 4),
                     "source":   hit.payload.get("source_file", "unknown"),
                     "chunk_id": hit.payload.get("chunk_id", ""),
+                    "image_ids": hit.payload.get("image_ids", []),
+                    "embedding": hit.payload.get("embedding", []),
                 })
 
         # 2. Sparse BM25 Search: Fetch matching candidate chunks
@@ -78,6 +80,8 @@ def retrieve_context(
                     "score":    round(score, 4),
                     "source":   chunk["source_file"],
                     "chunk_id": chunk["chunk_id"],
+                    "image_ids": chunk.get("image_ids", []),
+                    "embedding": chunk.get("embedding", []),
                 })
 
         # 3. Reciprocal Rank Fusion (RRF): Merge dense and sparse candidate lists

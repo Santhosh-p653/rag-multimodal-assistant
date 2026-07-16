@@ -81,6 +81,7 @@ class VectorStoreService:
                     "section":        chunk.get("section"),
                     "page":           chunk.get("page"),
                     "product_family": chunk.get("product_family"),
+                    "image_ids":      chunk.get("image_ids", []),
                 },
             )
             for chunk in chunks
@@ -175,6 +176,7 @@ class VectorStoreService:
                 "section":        point.payload.get("section"),
                 "page":           point.payload.get("page"),
                 "product_family": point.payload.get("product_family"),
+                "image_ids":      point.payload.get("image_ids", []),
             })
         return chunks
 

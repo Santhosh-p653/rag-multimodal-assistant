@@ -4,6 +4,13 @@ const API_URL = "http://localhost:8000";
 export interface ChatResponse {
   answer: string;
   sources: string[];
+  images?: Array<{
+    image_id: string;
+    document_id: string;
+    page: number;
+    caption: string;
+    url: string;
+  }>;
 }
 
 export interface UploadResponse {
@@ -21,10 +28,10 @@ export async function sendMessage(
   message: string,
   sourceFile: string | null = null
 ): Promise<ChatResponse> {
-  const response = await fetch(`${API_URL}/chat`, {
+  const response = await fetch(`${API_URL}/agent/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, source_file: sourceFile }),
+    body: JSON.stringify({ query: message, source_input: sourceFile }),
   });
 
   if (!response.ok) {
@@ -32,7 +39,28 @@ export async function sendMessage(
     throw new Error(errorData.detail || "Failed to get response from assistant");
   }
 
-  return response.json();
+  const data = await response.json();
+  
+  // Format sources if they are objects (AgentResponse format)
+  let formattedSources: string[] = [];
+  if (data.sources && Array.isArray(data.sources)) {
+    formattedSources = data.sources.map((s: any) => {
+      if (typeof s === "string") return s;
+      if (s.page) return `${s.source} (Page ${s.page})`;
+      return s.source;
+    });
+  }
+  
+  let finalAnswer = data.answer || data.clarification_question || "";
+  if (data.steps && Array.isArray(data.steps) && data.steps.length > 0) {
+    finalAnswer += "\n\n**Diagnostic Steps:**\n" + data.steps.map((step: string) => `- ${step}`).join("\n");
+  }
+  
+  return {
+    answer: finalAnswer,
+    sources: formattedSources,
+    images: data.images || [],
+  };
 }
 
 /**

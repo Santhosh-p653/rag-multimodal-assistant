@@ -137,7 +137,13 @@ stateDiagram-v2
 
 ---
 
-## 5. Security & Isolation Layers
+## 5. Phase 1: Query Understanding & Relevance Routing (WIP)
+
+A pre-retrieval layer (`query_understanding.py`) uses an LLM to evaluate the user's intent, extract entities, normalize text, and assign an `input_confidence` (`HIGH`, `MEDIUM`, `LOW`). Post-retrieval, a relevance guard (`retriever.py`) classifies the quality of context matched using the `rrf_score` of the top document compared against `RRF_HIGH_THRESHOLD` and `RRF_LOW_THRESHOLD` configs to assign a `retrieval_confidence`. Based on these two confidences, `/chat` dynamically routes between asking targeted clarification questions, hedging answers, serving grounded answers, or falling back.
+
+---
+
+## 6. Security & Isolation Layers
 
 Each incoming API call passes through a series of security filters before hitting the core RAG or LLM processing code.
 
@@ -152,7 +158,7 @@ graph LR
 
 ---
 
-## 6. Unified Agentic Ingestion + Retrieval Flow (LangGraph)
+## 7. Unified Agentic Ingestion + Retrieval Flow (LangGraph)
 
 For ad-hoc queries combining ingestion and retrieval, the system routes tasks through a bounded **LangGraph `StateGraph`** with conditional routing decisions. This enables LLM-driven path routing (e.g. asking for clarification on product name ambiguity) while maintaining deterministic processing node boundaries.
 

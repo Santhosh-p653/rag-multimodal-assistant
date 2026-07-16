@@ -2,11 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Cpu, FileText, Volume2, Loader2 } from "lucide-react";
 import { speakText } from "../lib/api";
 
+export interface RetrievedImage {
+  image_id: string;
+  document_id: string;
+  page: number;
+  caption: string;
+  url: string;
+}
+
 export interface Message {
   id: string;
   sender: "user" | "assistant";
   text: string;
   sources?: string[];       // Phase 3: source documents cited in the answer
+  images?: RetrievedImage[]; // Phase 3: associated images
   timestamp: Date;
 }
 
@@ -107,6 +116,34 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isMuted =
           >
             <p className="whitespace-pre-wrap">{message.text}</p>
           </div>
+
+          {/* Phase 3: Visuals Rendering */}
+          {!isUser && message.images && message.images.length > 0 && (
+            <div className="flex flex-col gap-3 mt-2 mb-2 w-full max-w-sm">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider pl-1">Related Visuals</span>
+              {message.images.map((img) => (
+                <div key={img.image_id} className="flex flex-col bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden p-2 group transition-all duration-300 hover:border-violet-500/50 hover:bg-slate-900 shadow-sm">
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`http://localhost:8000${img.url}`}
+                      alt={img.caption}
+                      className="object-contain max-h-full max-w-full group-hover:scale-[1.02] transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="mt-2.5 px-1.5 flex flex-col gap-1 pb-1">
+                    <p className="text-xs text-slate-200 font-medium leading-snug line-clamp-2" title={img.caption}>
+                      {img.caption}
+                    </p>
+                    <p className="text-[10px] text-slate-500 flex justify-between items-center">
+                      <span className="truncate max-w-[70%] text-slate-400">{img.document_id}</span>
+                      <span className="shrink-0 bg-slate-800 px-1.5 py-0.5 rounded text-violet-400 border border-slate-700 font-medium">Page {img.page}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Controls Footer - only for assistant */}
           {!isUser && (

@@ -2,6 +2,10 @@
 embedder.py — Singleton embedding service using sentence-transformers.
 Loads the model once at startup and reuses it for all embedding calls.
 """
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 from sentence_transformers import SentenceTransformer
 from app.config import EMBED_MODEL
 
