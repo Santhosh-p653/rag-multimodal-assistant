@@ -26,16 +26,23 @@ def test_api_health():
         assert response.json()["vectors_stored"] == 10
 
 
+@patch("app.services.query_understanding.understand_query")
 @patch("app.main.retrieve_context")
 @patch("app.main.call_llm")
-def test_api_chat(mock_llm, mock_retrieve):
-    mock_retrieve.return_value = [
+def test_api_chat(mock_llm, mock_retrieve, mock_understand):
+    mock_understand.return_value = {
+        "input_confidence": "HIGH",
+        "normalized_query": "How do I start the device?",
+        "entities": {}
+    }
+    
+    mock_retrieve.return_value = ([
         {
             "chunk_id": "c1",
             "content": "Manual instructions detail power checks.",
             "source": "manual.pdf",
         }
-    ]
+    ], "HIGH")
 
     mock_llm.return_value = "Please execute power checks on the device."
 

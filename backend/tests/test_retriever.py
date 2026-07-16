@@ -49,7 +49,7 @@ def test_retriever_prioritized_hierarchy(mock_identify, mock_vs, mock_emb):
     }
 
     # Execute
-    context = retrieve_context("Printer X100 displays Error E105")
+    context, conf = retrieve_context("Printer X100 displays Error E105")
     
     assert len(context) == 1
     assert context[0]["chunk_id"] == "x100::c0"
