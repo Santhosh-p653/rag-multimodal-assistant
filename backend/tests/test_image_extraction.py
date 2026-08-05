@@ -1,16 +1,17 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from app.services.image_extractor import extract_and_filter_images
-import sys
-
-mock_fitz = MagicMock()
-sys.modules['fitz'] = mock_fitz
+@pytest.fixture(autouse=True)
+def mock_fitz_module():
+    mock_fitz = MagicMock()
+    with patch.dict("sys.modules", {"fitz": mock_fitz}):
+        yield mock_fitz
 
 @patch("app.services.image_extractor.Image")
 @patch("app.services.image_extractor.imagehash")
 @patch("app.services.image_extractor.os.makedirs")
 @patch("builtins.open")
-def test_extract_images_filters_by_size(mock_open, mock_makedirs, mock_imagehash, mock_Image):
+def test_extract_images_filters_by_size(mock_open, mock_makedirs, mock_imagehash, mock_Image, mock_fitz_module):
     # Mock PDF document with one page and two images (one small, one large)
     mock_doc = MagicMock()
     mock_page = MagicMock()
@@ -18,7 +19,7 @@ def test_extract_images_filters_by_size(mock_open, mock_makedirs, mock_imagehash
     mock_page.get_images.return_value = [[1], [2]]
     mock_doc.__len__.return_value = 1
     mock_doc.__getitem__.return_value = mock_page
-    mock_fitz.open.return_value = mock_doc
+    mock_fitz_module.open.return_value = mock_doc
 
     # Mock extract_image
     mock_doc.extract_image.side_effect = [
@@ -55,7 +56,7 @@ def test_extract_images_filters_by_size(mock_open, mock_makedirs, mock_imagehash
 @patch("app.services.image_extractor.imagehash")
 @patch("app.services.image_extractor.os.makedirs")
 @patch("builtins.open")
-def test_extract_images_filters_repeated(mock_open, mock_makedirs, mock_imagehash, mock_Image):
+def test_extract_images_filters_repeated(mock_open, mock_makedirs, mock_imagehash, mock_Image, mock_fitz_module):
     # Mock PDF document with one page and two identical images
     mock_doc = MagicMock()
     mock_page = MagicMock()
@@ -63,7 +64,7 @@ def test_extract_images_filters_repeated(mock_open, mock_makedirs, mock_imagehas
     mock_page.get_images.return_value = [[1], [2], [3], [4], [5]]
     mock_doc.__len__.return_value = 1
     mock_doc.__getitem__.return_value = mock_page
-    mock_fitz.open.return_value = mock_doc
+    mock_fitz_module.open.return_value = mock_doc
 
     mock_doc.extract_image.return_value = {"image": b"img", "ext": "png"}
     

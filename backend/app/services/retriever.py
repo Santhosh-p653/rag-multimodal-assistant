@@ -102,9 +102,58 @@ def retrieve_context(
                 retrieval_confidence = "MEDIUM"
             else:
                 retrieval_confidence = "LOW"
+
+            # Execute parallel Vision Search if enabled
+            from app.config import settings
+            if settings.ENABLE_VISION_SEARCH:
+                try:
+                    from app.services.vision_search import search_similar_images
+                    vision_hits = search_similar_images(
+                        query=query,
+                        source_file=source_file,
+                        query_entities=query_entities
+                    )
+                    if vision_hits:
+                        v_ids = [v["image_id"] for v in vision_hits if v.get("image_id")]
+                        for res in merged_results:
+                            existing_ids = set(res.get("image_ids", []))
+                            # Add vision retrieved image_ids without duplicating
+                            for vid in v_ids:
+                                if vid not in existing_ids:
+                                    res.setdefault("image_ids", []).append(vid)
+                            res["vision_results"] = vision_hits
+                except Exception as e:
+                    print(f"[Retriever] Vision search integration error: {e}")
+
             return merged_results, retrieval_confidence
 
     # Return empty if nothing passes score threshold across all levels
     return [], "LOW"
+
+
+def retrieve_context_with_vision(
+    query: str,
+    source_file: Optional[str] = None,
+    query_entities: Optional[dict] = None
+) -> Tuple[List[Dict[str, Any]], str, List[Dict[str, Any]]]:
+    """
+    Hierarchical hybrid search (Dense + Sparse RRF) plus parallel SigLIP 2 Vision Retrieval.
+    Returns: (merged_chunks, retrieval_confidence, vision_image_results)
+    """
+    from app.services.vision_search import search_similar_images
+    merged_results, retrieval_confidence = retrieve_context(
+        query=query,
+        source_file=source_file,
+        query_entities=query_entities
+    )
+
+    vision_results = search_similar_images(
+        query=query,
+        source_file=source_file,
+        query_entities=query_entities
+    )
+
+    return merged_results, retrieval_confidence, vision_results
+
 
 

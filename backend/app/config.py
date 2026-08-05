@@ -46,6 +46,14 @@ class Settings:
     MAX_CLARIFICATION_ATTEMPTS: int = 2
     MAX_RETRIEVAL_RETRIES: int = 1
 
+    # --- Vision Embeddings ---
+    VISION_MODEL: str = os.getenv("VISION_MODEL", "google/siglip-base-patch16-224")
+    VISION_COLLECTION: str = os.getenv("VISION_COLLECTION", "manual_images")
+    VISION_TOP_K: int = int(os.getenv("VISION_TOP_K", "5"))
+    VISION_SCORE_THRESHOLD: float = float(os.getenv("VISION_SCORE_THRESHOLD", "0.0"))
+    ENABLE_VISION_SEARCH: bool = os.getenv("ENABLE_VISION_SEARCH", "True").lower() == "true"
+    ENABLE_VISION_INDEXING: bool = os.getenv("ENABLE_VISION_INDEXING", "True").lower() == "true"
+
     def __init__(self):
         # Auto-detect which provider to use (Groq preferred)
         if self.GROQ_API_KEY:
@@ -75,4 +83,11 @@ CHUNK_SIZE = settings.CHUNK_SIZE
 CHUNK_OVERLAP = settings.CHUNK_OVERLAP
 MAX_CLARIFICATION_ATTEMPTS = settings.MAX_CLARIFICATION_ATTEMPTS
 MAX_RETRIEVAL_RETRIES = settings.MAX_RETRIEVAL_RETRIES
+VISION_MODEL = settings.VISION_MODEL
+VISION_COLLECTION = settings.VISION_COLLECTION
+VISION_TOP_K = settings.VISION_TOP_K
+VISION_SCORE_THRESHOLD = settings.VISION_SCORE_THRESHOLD
+ENABLE_VISION_SEARCH = settings.ENABLE_VISION_SEARCH
+ENABLE_VISION_INDEXING = settings.ENABLE_VISION_INDEXING
+
 

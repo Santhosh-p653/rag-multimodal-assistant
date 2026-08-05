@@ -38,3 +38,6 @@ def test_vector_store_operations():
     chunks = service.get_all_chunks(source_file="test_manual.pdf")
     assert len(chunks) == 1
     assert chunks[0]["source_file"] == "test_manual.pdf"
+
+    # Reset singleton so subsequent tests get a clean instance
+    VectorStoreService._instance = None

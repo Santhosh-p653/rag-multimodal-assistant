@@ -52,6 +52,7 @@ class ParserService:
 
         # 0. Re-ingestion Cleanup: Delete existing chunks and image metadata
         self.vector_store.delete_by_filename(filename)
+        self.vector_store.delete_images_by_filename(filename)
         images_dir = os.path.join(self.output_dir, "images", base_name)
         if os.path.exists(images_dir):
             import shutil
@@ -117,7 +118,30 @@ class ParserService:
 
         self.vector_store.ingest_chunks(chunks)
 
+        # 6.5 Ingest vision image embeddings into manual_images collection
+        if extracted_images and settings.ENABLE_VISION_INDEXING:
+            try:
+                from app.services.vision_embedder import VisionEmbedderService
+                vision_embedder = VisionEmbedderService()
+                
+                image_paths = [img.get("image_path") for img in extracted_images if img.get("image_path")]
+                if image_paths:
+                    vision_vecs = vision_embedder.embed_images(image_paths)
+                    image_records = []
+                    for img, vec in zip(extracted_images, vision_vecs):
+                        img_rec = img.copy()
+                        img_rec["source_file"] = filename
+                        img_rec["product"] = metadata.get("product")
+                        img_rec["model"] = metadata.get("model")
+                        img_rec["vision_embedding"] = vec
+                        image_records.append(img_rec)
+                    
+                    self.vector_store.ingest_images(image_records)
+            except Exception as e:
+                print(f"[ParserService] SigLIP vision indexing failed gracefully: {e}")
+
         return {
             "markdown_file": md_filename,
             "chunks_ingested": len(chunks),
         }
+

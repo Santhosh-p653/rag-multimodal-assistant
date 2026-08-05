@@ -468,7 +468,8 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
         if not chunk.get("image_ids"):
             continue
             
-        doc_id = chunk.get("source", "").replace(".pdf", "").replace(".md", "")
+        source_val = chunk.get("source") or chunk.get("source_file") or ""
+        doc_id = source_val.replace(".pdf", "").replace(".md", "")
         if doc_id not in doc_metadata:
             md_path = os.path.join(str(settings.OUTPUT_DIR), "images", doc_id, "metadata.json")
             if os.path.exists(md_path):
@@ -500,32 +501,42 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
             seen_ids.add(i_id)
             unique_candidates.append(c)
             
-    # If MEDIUM, strictly filter
+    # Filter candidate images
     valid_candidates = []
     if conf == "MEDIUM":
         embedder = EmbedderService()
+        query_text = state.get("query", "")
+        query_emb = np.array(embedder.embed_text(query_text)) if query_text else None
+
         for c in unique_candidates:
-            # Re-check similarity specifically for strict threshold
-            img_text = c["image_data"].get("nearby_text", "")
+            img_text = (c["image_data"].get("nearby_text", "") + " " + c["image_data"].get("caption", "")).strip()
             if not img_text:
                 continue
             
             i_emb = np.array(embedder.embed_text(img_text))
             
             c_emb = c.get("chunk_emb")
-            if not c_emb or len(c_emb) == 0:
+            if (not c_emb or len(c_emb) == 0) and c.get("chunk_content"):
                 c_emb = embedder.embed_text(c["chunk_content"])
-            c_emb = np.array(c_emb)
             
-            sim = np.dot(c_emb, i_emb) / (np.linalg.norm(c_emb) * np.linalg.norm(i_emb) + 1e-10)
+            sim_chunk = 0.0
+            if c_emb and len(c_emb) > 0:
+                c_emb = np.array(c_emb)
+                sim_chunk = float(np.dot(c_emb, i_emb) / (np.linalg.norm(c_emb) * np.linalg.norm(i_emb) + 1e-10))
             
-            if sim >= MEDIUM_NEARBY_MIN_SIMILARITY or sim >= MEDIUM_CAPTION_MIN_SIMILARITY:
+            sim_query = 0.0
+            if query_emb is not None:
+                sim_query = float(np.dot(query_emb, i_emb) / (np.linalg.norm(query_emb) * np.linalg.norm(i_emb) + 1e-10))
+
+            if sim_query >= MEDIUM_NEARBY_MIN_SIMILARITY or sim_chunk >= MEDIUM_NEARBY_MIN_SIMILARITY or sim_chunk >= MEDIUM_CAPTION_MIN_SIMILARITY:
+                c["sim_score"] = max(sim_query, sim_chunk)
                 valid_candidates.append(c)
     else:
+        # HIGH confidence
         valid_candidates = unique_candidates
         
-    # Sort by chunk rank (lowest is best)
-    valid_candidates.sort(key=lambda x: x["chunk_rank"])
+    # Sort by chunk rank (lowest rank = top priority)
+    valid_candidates.sort(key=lambda x: (x["chunk_rank"], -x.get("sim_score", 0)))
     
     # Cap limit
     limit = MAX_RETRIEVED_IMAGES_HIGH if conf == "HIGH" else MAX_RETRIEVED_IMAGES_MEDIUM
@@ -609,25 +620,39 @@ def format_response(state: AgentState) -> Dict[str, Any]:
             "steps": [],
             "sources": [],
             "clarification_needed": True,
-            "status": "needs_clarification"
+            "status": "needs_clarification",
+            "images": []
         }
 
     status = "answered"
+    answer_text = state.get("answer", "")
+    answer_lower = answer_text.lower()
+
     if clarification_needed:
         status = "needs_clarification"
     elif state.get("retrieval_confidence") == "LOW":
-        status = "fallback" if "could not find" in state.get("answer", "").lower() else "low_relevance"
+        status = "fallback" if "could not find" in answer_lower else "low_relevance"
+    elif "could not find" in answer_lower or "cannot find" in answer_lower:
+        status = "fallback"
+
+    # Fix: Clear images and sources if no answer found or clarification requested
+    if clarification_needed or status in ["fallback", "needs_clarification", "low_relevance"] or "could not find" in answer_lower or "cannot find" in answer_lower:
+        images = []
+        sources = []
+    else:
+        images = state.get("images") or []
+        sources = state.get("sources") or []
 
     return {
-        "answer": state["answer"],
+        "answer": answer_text,
         "steps": state.get("steps") or [],
-        "sources": state.get("sources") or [],
+        "sources": sources,
         "product_id": state.get("product_id"),
         "clarification_needed": clarification_needed,
         "version_info": state.get("version_info"),
         "clarification_question": state.get("clarification_question"),
         "status": status,
-        "images": state.get("images") or []
+        "images": images
     }
 
 # --- Graph Assembly ---
