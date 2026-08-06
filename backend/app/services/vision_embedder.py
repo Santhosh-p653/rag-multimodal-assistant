@@ -120,6 +120,16 @@ class VisionEmbedderService:
             with torch.no_grad():
                 inputs = self._processor(images=pil_images, return_tensors="pt").to(self._device)
                 image_features = self._model.get_image_features(**inputs)
+                if not isinstance(image_features, torch.Tensor):
+                    if hasattr(image_features, "image_embeds") and image_features.image_embeds is not None:
+                        image_features = image_features.image_embeds
+                    elif hasattr(image_features, "pooler_output") and image_features.pooler_output is not None:
+                        image_features = image_features.pooler_output
+                    elif hasattr(image_features, "last_hidden_state"):
+                        image_features = image_features.last_hidden_state[:, 0, :]
+                    else:
+                        image_features = image_features[0]
+
                 image_features = torch.nn.functional.normalize(image_features, dim=-1)
                 vectors = image_features.cpu().numpy().tolist()
                 return vectors
@@ -142,6 +152,16 @@ class VisionEmbedderService:
             with torch.no_grad():
                 inputs = self._processor(text=[text.strip()], return_tensors="pt", padding=True).to(self._device)
                 text_features = self._model.get_text_features(**inputs)
+                if not isinstance(text_features, torch.Tensor):
+                    if hasattr(text_features, "text_embeds") and text_features.text_embeds is not None:
+                        text_features = text_features.text_embeds
+                    elif hasattr(text_features, "pooler_output") and text_features.pooler_output is not None:
+                        text_features = text_features.pooler_output
+                    elif hasattr(text_features, "last_hidden_state"):
+                        text_features = text_features.last_hidden_state[:, 0, :]
+                    else:
+                        text_features = text_features[0]
+
                 text_features = torch.nn.functional.normalize(text_features, dim=-1)
                 vector = text_features[0].cpu().numpy().tolist()
                 return vector
