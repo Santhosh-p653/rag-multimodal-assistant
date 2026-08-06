@@ -28,8 +28,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
 
-# Pre-cache whisper-small and embedding model weights
-RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8'); from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# Pre-cache whisper-small, embedding model, and SigLIP vision model weights
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8'); from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2'); from transformers import AutoProcessor, AutoModel; AutoProcessor.from_pretrained('google/siglip-base-patch16-224'); AutoModel.from_pretrained('google/siglip-base-patch16-224')"
 
 EXPOSE 8000
 
