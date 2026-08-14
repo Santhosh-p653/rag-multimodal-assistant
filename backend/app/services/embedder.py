@@ -10,6 +10,9 @@ from sentence_transformers import SentenceTransformer
 from app.config import EMBED_MODEL
 
 
+from functools import lru_cache
+
+
 class EmbedderService:
     _instance = None
 
@@ -22,8 +25,9 @@ class EmbedderService:
             print("[Embedder] Model ready.")
         return cls._instance
 
+    @lru_cache(maxsize=1024)
     def embed_text(self, text: str) -> list[float]:
-        """Embed a single text string into a dense vector."""
+        """Embed a single text string into a dense vector with LRU caching."""
         vector = self.model.encode(text, normalize_embeddings=True)
         return vector.tolist()
 

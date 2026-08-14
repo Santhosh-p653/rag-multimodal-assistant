@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-08-14 13:52:19",
+  "timestamp": "2026-08-14 14:50:53",
   "average_latency_ms": {
-    "query_understanding": 4472.38,
-    "text_retrieval_rrf": 3615.19,
-    "vision_embedding": 48.18,
-    "total_retrieval": 8135.75
+    "query_understanding": 7504.14,
+    "text_retrieval_rrf": 5935.25,
+    "vision_embedding": 168.82,
+    "total_retrieval": 13608.21
   },
   "average_metrics": {
-    "precision_at_3": 0.9167,
-    "precision_at_5": 0.71,
-    "recall_at_5": 0.71,
+    "precision_at_3": 0.95,
+    "precision_at_5": 0.78,
+    "recall_at_5": 0.78,
     "mrr": 0.9167,
     "hit_rate": 1.0
   },
@@ -19,10 +19,10 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 17685.83,
-        "text_retrieval_rrf": 3524.16,
-        "vision_embedding": 43.21,
-        "total": 21253.21
+        "query_understanding": 8764.6,
+        "text_retrieval_rrf": 5524.59,
+        "vision_embedding": 1641.68,
+        "total": 15930.87
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -37,15 +37,15 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1267.26,
-        "text_retrieval_rrf": 3027.21,
-        "vision_embedding": 40.82,
-        "total": 4335.29
+        "query_understanding": 7546.16,
+        "text_retrieval_rrf": 6589.08,
+        "vision_embedding": 101.65,
+        "total": 14236.89
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -55,10 +55,10 @@
       "category": "Refrigerator / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1002.75,
-        "text_retrieval_rrf": 1110.01,
-        "vision_embedding": 42.58,
-        "total": 2155.34
+        "query_understanding": 7377.5,
+        "text_retrieval_rrf": 18119.4,
+        "vision_embedding": 51.83,
+        "total": 25548.74
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -73,10 +73,10 @@
       "category": "Refrigerator / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2331.58,
-        "text_retrieval_rrf": 2068.27,
-        "vision_embedding": 59.35,
-        "total": 4459.2
+        "query_understanding": 5889.53,
+        "text_retrieval_rrf": 2470.1,
+        "vision_embedding": 110.05,
+        "total": 8469.67
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -91,10 +91,10 @@
       "category": "Refrigerator / Repair",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2553.52,
-        "text_retrieval_rrf": 4613.46,
-        "vision_embedding": 39.98,
-        "total": 7206.95
+        "query_understanding": 1981.19,
+        "text_retrieval_rrf": 2575.46,
+        "vision_embedding": 103.48,
+        "total": 4660.13
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -109,15 +109,15 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 25770.72,
-        "text_retrieval_rrf": 2738.23,
-        "vision_embedding": 52.29,
-        "total": 28561.23
+        "query_understanding": 8022.28,
+        "text_retrieval_rrf": 4717.03,
+        "vision_embedding": 92.17,
+        "total": 12831.48
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
         "hit": 1
       }
@@ -127,10 +127,10 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2566.3,
-        "text_retrieval_rrf": 1890.31,
-        "vision_embedding": 44.98,
-        "total": 4501.59
+        "query_understanding": 16165.36,
+        "text_retrieval_rrf": 17930.09,
+        "vision_embedding": 138.54,
+        "total": 34233.99
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -145,15 +145,15 @@
       "category": "Washer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1733.82,
-        "text_retrieval_rrf": 2169.68,
-        "vision_embedding": 51.38,
-        "total": 3954.88
+        "query_understanding": 5727.78,
+        "text_retrieval_rrf": 7307.72,
+        "vision_embedding": 58.77,
+        "total": 13094.27
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
         "mrr": 0.5,
         "hit": 1
       }
@@ -163,10 +163,10 @@
       "category": "Washer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3952.61,
-        "text_retrieval_rrf": 3029.37,
-        "vision_embedding": 52.14,
-        "total": 7034.11
+        "query_understanding": 3611.32,
+        "text_retrieval_rrf": 7240.4,
+        "vision_embedding": 141.08,
+        "total": 10992.8
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -181,15 +181,15 @@
       "category": "Washer / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 4548.65,
-        "text_retrieval_rrf": 3790.67,
-        "vision_embedding": 46.42,
-        "total": 8385.74
+        "query_understanding": 7994.97,
+        "text_retrieval_rrf": 1706.65,
+        "vision_embedding": 96.43,
+        "total": 9798.06
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -199,10 +199,10 @@
       "category": "Freezer / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1373.24,
-        "text_retrieval_rrf": 1234.6,
-        "vision_embedding": 74.74,
-        "total": 2682.59
+        "query_understanding": 1276.97,
+        "text_retrieval_rrf": 4492.74,
+        "vision_embedding": 59.97,
+        "total": 5829.68
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -217,10 +217,10 @@
       "category": "Freezer / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1548.65,
-        "text_retrieval_rrf": 985.03,
-        "vision_embedding": 44.63,
-        "total": 2578.32
+        "query_understanding": 4586.81,
+        "text_retrieval_rrf": 3652.72,
+        "vision_embedding": 93.76,
+        "total": 8333.29
       },
       "metrics": {
         "precision_at_3": 0.3333,
@@ -235,10 +235,10 @@
       "category": "Freezer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1477.97,
-        "text_retrieval_rrf": 1547.1,
-        "vision_embedding": 46.86,
-        "total": 3071.94
+        "query_understanding": 4245.55,
+        "text_retrieval_rrf": 3053.49,
+        "vision_embedding": 70.64,
+        "total": 7369.69
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -253,10 +253,10 @@
       "category": "Freezer / Features",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3115.63,
-        "text_retrieval_rrf": 4531.93,
-        "vision_embedding": 40.46,
-        "total": 7688.01
+        "query_understanding": 15382.8,
+        "text_retrieval_rrf": 6166.41,
+        "vision_embedding": 53.58,
+        "total": 21602.78
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -271,10 +271,10 @@
       "category": "Freezer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3644.68,
-        "text_retrieval_rrf": 6030.22,
-        "vision_embedding": 46.33,
-        "total": 9721.22
+        "query_understanding": 3608.3,
+        "text_retrieval_rrf": 4662.83,
+        "vision_embedding": 90.7,
+        "total": 8361.83
       },
       "metrics": {
         "precision_at_3": 0.6667,
@@ -289,15 +289,15 @@
       "category": "Dishwasher / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3438.82,
-        "text_retrieval_rrf": 4784.38,
-        "vision_embedding": 40.29,
-        "total": 8263.5
+        "query_understanding": 17565.61,
+        "text_retrieval_rrf": 5563.37,
+        "vision_embedding": 54.69,
+        "total": 23183.67
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
         "mrr": 0.5,
         "hit": 1
       }
@@ -307,10 +307,10 @@
       "category": "Dishwasher / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2941.55,
-        "text_retrieval_rrf": 5143.34,
-        "vision_embedding": 55.59,
-        "total": 8140.49
+        "query_understanding": 4233.49,
+        "text_retrieval_rrf": 7532.87,
+        "vision_embedding": 91.06,
+        "total": 11857.42
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -325,10 +325,10 @@
       "category": "Dishwasher / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 4092.79,
-        "text_retrieval_rrf": 8698.21,
-        "vision_embedding": 49.93,
-        "total": 12840.93
+        "query_understanding": 6914.25,
+        "text_retrieval_rrf": 5151.12,
+        "vision_embedding": 107.61,
+        "total": 12172.98
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -343,10 +343,10 @@
       "category": "Dishwasher / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 911.82,
-        "text_retrieval_rrf": 5008.24,
-        "vision_embedding": 47.32,
-        "total": 5967.38
+        "query_understanding": 14745.99,
+        "text_retrieval_rrf": 1863.94,
+        "vision_embedding": 103.6,
+        "total": 16713.53
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -361,10 +361,10 @@
       "category": "Dishwasher / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3489.4,
-        "text_retrieval_rrf": 6379.34,
-        "vision_embedding": 44.28,
-        "total": 9913.02
+        "query_understanding": 4442.28,
+        "text_retrieval_rrf": 2385.03,
+        "vision_embedding": 115.04,
+        "total": 6942.35
       },
       "metrics": {
         "precision_at_3": 1.0,

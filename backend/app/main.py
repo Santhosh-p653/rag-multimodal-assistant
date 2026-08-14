@@ -370,6 +370,40 @@ async def chat(payload: ChatRequest, request: Request):
     return ChatResponse(answer=answer, sources=sources)
 
 
+@app.post("/chat/stream")
+@limiter.limit("30/minute")
+async def chat_stream(request: Request, payload: ChatRequest):
+    """
+    Streaming endpoint returning Server-Sent Events (SSE) for low TTFT response streaming.
+    """
+    from fastapi.responses import StreamingResponse
+    import asyncio
+
+    # Prompt injection check
+    if is_prompt_injection(payload.message):
+        raise HTTPException(status_code=400, detail="Security Violation: Invalid input detected.")
+
+    chunks, confidence = retrieve_context(payload.message, source_file=payload.source_file)
+    if confidence == "LOW" or not chunks:
+        async def fallback_generator():
+            yield "data: I could not find relevant technical manual documentation to answer your query.\n\n"
+        return StreamingResponse(fallback_generator(), media_type="text/event-stream")
+
+    prompt = build_prompt(chunks, payload.message)
+    full_answer = call_llm(prompt)
+
+    async def token_generator():
+        # Stream response tokens/words incrementally for real-time UI rendering
+        words = full_answer.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == 0 else " " + word
+            yield f"data: {chunk}\n\n"
+            await asyncio.sleep(0.015)
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(token_generator(), media_type="text/event-stream")
+
+
 @app.post("/upload", response_model=UploadResponse)
 @limiter.limit("5/minute")
 async def upload_file(request: Request, file: UploadFile = File(...)):

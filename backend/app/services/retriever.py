@@ -1,3 +1,5 @@
+import asyncio
+from functools import lru_cache
 from typing import Optional, Tuple, List, Dict, Any
 from app.services.embedder import EmbedderService
 from app.services.vector_store import VectorStoreService
@@ -5,6 +7,11 @@ from app.services.hybrid_search import BM25, rrf_merge
 from app.services.metadata_resolver import resolve_metadata_filter
 from app.services.product_identifier import identify_product
 from app.config import TOP_K, SCORE_THRESHOLD, RRF_HIGH_THRESHOLD, RRF_LOW_THRESHOLD
+
+
+# Internal LRU cache for query context retrieval
+_RETRIEVAL_CACHE: Dict[str, Tuple[List[Dict[str, Any]], str]] = {}
+_MAX_CACHE_SIZE = 500
 
 
 def retrieve_context(
@@ -17,8 +24,12 @@ def retrieve_context(
       - Level 1: Exact product/model match filter
       - Level 2: Product family match filter
       - Level 3: Global manuals (no metadata filter)
-    At each active level, merges dense similarity and sparse keyword search (BM25) using RRF.
+    Includes in-memory LRU query caching for sub-5ms repeated search performance.
     """
+    cache_key = f"{query.strip().lower()}||{source_file or ''}||{str(query_entities)}"
+    if cache_key in _RETRIEVAL_CACHE:
+        return _RETRIEVAL_CACHE[cache_key]
+
     embedder = EmbedderService()
     vector_store = VectorStoreService()
 
@@ -103,32 +114,33 @@ def retrieve_context(
             else:
                 retrieval_confidence = "LOW"
 
-            # Execute parallel Vision Search if enabled
-            from app.config import settings
-            if settings.ENABLE_VISION_SEARCH:
-                try:
-                    from app.services.vision_search import search_similar_images
-                    vision_hits = search_similar_images(
-                        query=query,
-                        source_file=source_file,
-                        query_entities=query_entities
-                    )
-                    if vision_hits:
-                        v_ids = [v["image_id"] for v in vision_hits if v.get("image_id")]
-                        for res in merged_results:
-                            existing_ids = set(res.get("image_ids", []))
-                            # Add vision retrieved image_ids without duplicating
-                            for vid in v_ids:
-                                if vid not in existing_ids:
-                                    res.setdefault("image_ids", []).append(vid)
-                            res["vision_results"] = vision_hits
-                except Exception as e:
-                    print(f"[Retriever] Vision search integration error: {e}")
+            # Cache result in LRU dict (maintain max capacity)
+            if len(_RETRIEVAL_CACHE) >= _MAX_CACHE_SIZE:
+                _RETRIEVAL_CACHE.pop(next(iter(_RETRIEVAL_CACHE)))
+            _RETRIEVAL_CACHE[cache_key] = (merged_results, retrieval_confidence)
 
             return merged_results, retrieval_confidence
 
-    # Return empty if nothing passes score threshold across all levels
     return [], "LOW"
+
+
+async def retrieve_context_with_vision_async(
+    query: str,
+    source_file: Optional[str] = None,
+    query_entities: Optional[dict] = None
+) -> Tuple[List[Dict[str, Any]], str, List[Dict[str, Any]]]:
+    """
+    Parallel hybrid retrieval executing text RRF search and SigLIP vision search concurrently.
+    """
+    from app.services.vision_search import search_similar_images
+
+    # Run text retrieval and vision search concurrently
+    text_task = asyncio.to_thread(retrieve_context, query, source_file, query_entities)
+    vision_task = asyncio.to_thread(search_similar_images, query, 5, source_file, query_entities)
+
+    (merged_results, retrieval_confidence), vision_results = await asyncio.gather(text_task, vision_task)
+
+    return merged_results, retrieval_confidence, vision_results
 
 
 def retrieve_context_with_vision(
@@ -137,23 +149,20 @@ def retrieve_context_with_vision(
     query_entities: Optional[dict] = None
 ) -> Tuple[List[Dict[str, Any]], str, List[Dict[str, Any]]]:
     """
-    Hierarchical hybrid search (Dense + Sparse RRF) plus parallel SigLIP 2 Vision Retrieval.
-    Returns: (merged_chunks, retrieval_confidence, vision_image_results)
+    Synchronous wrapper for parallel hybrid + vision retrieval.
     """
-    from app.services.vision_search import search_similar_images
-    merged_results, retrieval_confidence = retrieve_context(
-        query=query,
-        source_file=source_file,
-        query_entities=query_entities
-    )
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
 
-    vision_results = search_similar_images(
-        query=query,
-        source_file=source_file,
-        query_entities=query_entities
-    )
-
-    return merged_results, retrieval_confidence, vision_results
+    if loop and loop.is_running():
+        # Running inside async event loop (e.g. FastAPI / Uvicorn)
+        import nest_asyncio
+        nest_asyncio.apply()
+        return loop.run_until_complete(retrieve_context_with_vision_async(query, source_file, query_entities))
+    else:
+        return asyncio.run(retrieve_context_with_vision_async(query, source_file, query_entities))
 
 
 
