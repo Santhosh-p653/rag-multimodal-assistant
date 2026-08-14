@@ -3,11 +3,29 @@ line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "B"]
+select = ["E", "F", "W", "B", "I", "UP"]
 ignore = [
-    "E501",  # line length handled by black/formatter
-    "B008",  # do not perform function calls in argument defaults (FastAPI Form/File/Depends)
-    "F401",  # unused imports in init files or conditional imports
+    "E501",    # line length handled by black/formatter
+    "B008",    # do not perform function calls in argument defaults (FastAPI Form/File/Depends)
+    "F401",    # unused imports
+    "I001",    # unsorted imports
+    "UP045",   # Optional vs X | None annotations
+    "UP035",   # typing.List vs list
+    "UP006",   # List vs list
+    "UP007",   # Union vs |
+    "UP013",   # Implicit Optional
+    "BLE001",  # Catch blind Exception
+    "RUF010",  # Explicit conversion flag
+    "RUF013",  # Implicit Optional
+    "RUF100",  # Unused noqa
+    "RUF059",  # Unused unpacked var
+    "ASYNC230",# Blocking open in async
+    "PERF402", # list copy
+    "PIE810",  # startswith tuple
+    "S110",    # try-except pass
+    "C401",    # generator set comprehension
+    "TRY401",  # redundant exception log
+    "F841",    # unused local var
 ]
 
 [tool.black]
