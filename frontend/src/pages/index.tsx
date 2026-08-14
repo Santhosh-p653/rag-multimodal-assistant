@@ -128,10 +128,10 @@ export default function Home() {
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold tracking-wide bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                M-RAG Assistant
+              <h1 className="text-base font-bold tracking-wider bg-gradient-to-r from-violet-400 via-purple-300 to-indigo-200 bg-clip-text text-transparent">
+                OCTO-RAG
               </h1>
-              <p className="text-[10px] text-violet-400 font-medium">Phase 3 — RAG</p>
+              <p className="text-[10px] text-violet-400 font-medium tracking-wide">Multimodal AI Intelligence</p>
             </div>
           </div>
 

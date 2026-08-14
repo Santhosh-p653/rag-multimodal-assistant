@@ -1,0 +1,19 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+ignore = [
+    "E501",  # line length handled by black/formatter
+    "B008",  # do not perform function calls in argument defaults (FastAPI Form/File/Depends)
+    "F401",  # unused imports in init files or conditional imports
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

@@ -17,8 +17,24 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-warm embedding models into RAM on server startup to eliminate cold-start upload/chat delay
+    try:
+        print("[Startup] Pre-warming text and vision embedding models...")
+        from app.services.embedder import EmbedderService
+        from app.services.vision_embedder import VisionEmbedderService
+        EmbedderService()
+        VisionEmbedderService()
+        print("[Startup] Embedding models ready in RAM.")
+    except Exception as e:
+        print(f"[Startup] Model pre-warming warning: {e}")
+    yield
+
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Multimodal RAG Assistant API", version="3.0.0")
+app = FastAPI(title="OCTO-RAG Assistant API", version="3.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

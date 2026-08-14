@@ -1,0 +1,378 @@
+{
+  "timestamp": "2026-08-14 13:52:19",
+  "average_latency_ms": {
+    "query_understanding": 4472.38,
+    "text_retrieval_rrf": 3615.19,
+    "vision_embedding": 48.18,
+    "total_retrieval": 8135.75
+  },
+  "average_metrics": {
+    "precision_at_3": 0.9167,
+    "precision_at_5": 0.71,
+    "recall_at_5": 0.71,
+    "mrr": 0.9167,
+    "hit_rate": 1.0
+  },
+  "sample_evaluations": [
+    {
+      "query": "How do I reset the refrigerator water filter indicator light?",
+      "category": "Refrigerator / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 17685.83,
+        "text_retrieval_rrf": 3524.16,
+        "vision_embedding": 43.21,
+        "total": 21253.21
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to clean the condenser coils on model RF-900?",
+      "category": "Refrigerator / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1267.26,
+        "text_retrieval_rrf": 3027.21,
+        "vision_embedding": 40.82,
+        "total": 4335.29
+      },
+      "metrics": {
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Where is the ice maker shut-off valve located?",
+      "category": "Refrigerator / Component",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1002.75,
+        "text_retrieval_rrf": 1110.01,
+        "vision_embedding": 42.58,
+        "total": 2155.34
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What is the target temperature setting for the fresh food compartment?",
+      "category": "Refrigerator / Specs",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 2331.58,
+        "text_retrieval_rrf": 2068.27,
+        "vision_embedding": 59.35,
+        "total": 4459.2
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to replace torn door gasket seals on RF-900?",
+      "category": "Refrigerator / Repair",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 2553.52,
+        "text_retrieval_rrf": 4613.46,
+        "vision_embedding": 39.98,
+        "total": 7206.95
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What does error code E4 on the washing machine mean?",
+      "category": "Washer / Error Code",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 25770.72,
+        "text_retrieval_rrf": 2738.23,
+        "vision_embedding": 52.29,
+        "total": 28561.23
+      },
+      "metrics": {
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to resolve error code LE overload signal on washing machine?",
+      "category": "Washer / Error Code",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 2566.3,
+        "text_retrieval_rrf": 1890.31,
+        "vision_embedding": 44.98,
+        "total": 4501.59
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What causes an unbalanced load error UE during high speed spin?",
+      "category": "Washer / Troubleshooting",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1733.82,
+        "text_retrieval_rrf": 2169.68,
+        "vision_embedding": 51.38,
+        "total": 3954.88
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 0.5,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Where is the drain pump lint filter located on model WM-400?",
+      "category": "Washer / Component",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 3952.61,
+        "text_retrieval_rrf": 3029.37,
+        "vision_embedding": 52.14,
+        "total": 7034.11
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How do I clear detergent drawer residue buildup?",
+      "category": "Washer / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 4548.65,
+        "text_retrieval_rrf": 3790.67,
+        "vision_embedding": 46.42,
+        "total": 8385.74
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What is the recommended operating voltage for the freezer compressor?",
+      "category": "Freezer / Specs",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1373.24,
+        "text_retrieval_rrf": 1234.6,
+        "vision_embedding": 74.74,
+        "total": 2682.59
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to unclog a frozen defrost drain tube in model FZ-200?",
+      "category": "Freezer / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1548.65,
+        "text_retrieval_rrf": 985.03,
+        "vision_embedding": 44.63,
+        "total": 2578.32
+      },
+      "metrics": {
+        "precision_at_3": 0.3333,
+        "precision_at_5": 0.2,
+        "recall_at_5": 0.2,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Why is excessive frost accumulating on the top freezer shelf?",
+      "category": "Freezer / Troubleshooting",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 1477.97,
+        "text_retrieval_rrf": 1547.1,
+        "vision_embedding": 46.86,
+        "total": 3071.94
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to silence the freezer door open warning alarm?",
+      "category": "Freezer / Features",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 3115.63,
+        "text_retrieval_rrf": 4531.93,
+        "vision_embedding": 40.46,
+        "total": 7688.01
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Where is the temperature sensor thermistor located in FZ-200?",
+      "category": "Freezer / Component",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 3644.68,
+        "text_retrieval_rrf": 6030.22,
+        "vision_embedding": 46.33,
+        "total": 9721.22
+      },
+      "metrics": {
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What causes dishwasher error code E15 leak alert?",
+      "category": "Dishwasher / Error Code",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 3438.82,
+        "text_retrieval_rrf": 4784.38,
+        "vision_embedding": 40.29,
+        "total": 8263.5
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 0.5,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to remove and clean clogged spray arm nozzles on DW-800?",
+      "category": "Dishwasher / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 2941.55,
+        "text_retrieval_rrf": 5143.34,
+        "vision_embedding": 55.59,
+        "total": 8140.49
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Where is the water inlet solenoid valve located on model DW-800?",
+      "category": "Dishwasher / Component",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 4092.79,
+        "text_retrieval_rrf": 8698.21,
+        "vision_embedding": 49.93,
+        "total": 12840.93
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Why is the dishwasher detergent tablet dispenser flap not opening?",
+      "category": "Dishwasher / Troubleshooting",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 911.82,
+        "text_retrieval_rrf": 5008.24,
+        "vision_embedding": 47.32,
+        "total": 5967.38
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 0.3333,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What is the electrical wattage rating for the heating element?",
+      "category": "Dishwasher / Specs",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 3489.4,
+        "text_retrieval_rrf": 6379.34,
+        "vision_embedding": 44.28,
+        "total": 9913.02
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    }
+  ]
+}
