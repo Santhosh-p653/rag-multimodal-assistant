@@ -43,7 +43,14 @@ EVAL_DATASET = [
     {"query": "How to remove and clean clogged spray arm nozzles on DW-800?", "expected_keywords": ["spray", "arm", "nozzles", "clean", "clogged"], "category": "Dishwasher / Maintenance"},
     {"query": "Where is the water inlet solenoid valve located on model DW-800?", "expected_keywords": ["water", "inlet", "valve", "solenoid", "bottom"], "category": "Dishwasher / Component"},
     {"query": "Why is the dishwasher detergent tablet dispenser flap not opening?", "expected_keywords": ["detergent", "dispenser", "flap", "opening", "latch"], "category": "Dishwasher / Troubleshooting"},
-    {"query": "What is the electrical wattage rating for the heating element?", "expected_keywords": ["wattage", "rating", "heating", "element", "watt"], "category": "Dishwasher / Specs"}
+    {"query": "What is the electrical wattage rating for the heating element?", "expected_keywords": ["wattage", "rating", "heating", "element", "watt"], "category": "Dishwasher / Specs"},
+
+    # Newly Uploaded Document Category (Testing Fresh Ingestion & Relevance)
+    {"query": "How to calibrate humidity sensor on newly uploaded Smart Oven SO-500?", "expected_keywords": ["calibrate", "humidity", "sensor", "so-500", "oven"], "category": "Newly Uploaded / Oven"},
+    {"query": "What is the maximum noise decibel rating for dryer model DR-300?", "expected_keywords": ["noise", "decibel", "db", "dr-300", "dryer"], "category": "Newly Uploaded / Dryer"},
+    {"query": "How to enable Eco Mode on newly ingested Smart HVAC H-100 manual?", "expected_keywords": ["eco", "mode", "hvac", "h-100", "enable"], "category": "Newly Uploaded / HVAC"},
+    {"query": "What is the warranty period for replacement air filter components?", "expected_keywords": ["warranty", "filter", "period", "replacement", "year"], "category": "Newly Uploaded / Warranty"},
+    {"query": "How to clear error code F02 thermal cut-off on toaster oven SO-500?", "expected_keywords": ["error", "f02", "thermal", "so-500", "reset"], "category": "Newly Uploaded / Safety"}
 ]
 
 
@@ -67,8 +74,8 @@ def profile_pipeline():
 
     embedder = EmbedderService()
 
-    if vs.count() < 20:
-        print("[Evaluation] Qdrant DB has fewer than 20 vectors. Seeding 20 technical manual chunks...")
+    if vs.count() < 25:
+        print("[Evaluation] Qdrant DB has fewer than 25 vectors. Seeding evaluation technical manual chunks...")
         raw_chunks = [
             {"chunk_id": "eval_1", "content": "To reset the refrigerator water filter indicator light, press and hold the Filter Reset button for 3 seconds until the light turns green.", "source_file": "ref_manual.pdf", "product": "RF-900", "page": 12},
             {"chunk_id": "eval_2", "content": "To clean the condenser coils on model RF-900, disconnect power and gently vacuum dust off the rear coil grill every 6 months.", "source_file": "ref_manual.pdf", "product": "RF-900", "page": 18},
@@ -92,7 +99,14 @@ def profile_pipeline():
             {"chunk_id": "eval_17", "content": "To remove and clean clogged spray arm nozzles on DW-800, unscrew the retaining nut and rinse under high pressure tap water.", "source_file": "dw_manual.pdf", "product": "DW-800", "page": 15},
             {"chunk_id": "eval_18", "content": "The water inlet solenoid valve is located at the bottom left base plate behind the lower front kickplate of model DW-800.", "source_file": "dw_manual.pdf", "product": "DW-800", "page": 9},
             {"chunk_id": "eval_19", "content": "If the dishwasher detergent tablet dispenser flap is not opening, ensure tall dinner plates are not blocking the door latch spring mechanism.", "source_file": "dw_manual.pdf", "product": "DW-800", "page": 21},
-            {"chunk_id": "eval_20", "content": "The electrical wattage rating for the heating element is 1200 Watts operating on a 15 Amp dedicated circuit breaker.", "source_file": "dw_manual.pdf", "product": "DW-800", "page": 3}
+            {"chunk_id": "eval_20", "content": "The electrical wattage rating for the heating element is 1200 Watts operating on a 15 Amp dedicated circuit breaker.", "source_file": "dw_manual.pdf", "product": "DW-800", "page": 3},
+
+            # Freshly Uploaded Document Chunks
+            {"chunk_id": "eval_21", "content": "To calibrate the humidity sensor on newly uploaded Smart Oven SO-500, enter Diagnostic Mode by holding Timer and Temperature buttons for 5 seconds.", "source_file": "so500_oven_new.pdf", "product": "SO-500", "page": 7},
+            {"chunk_id": "eval_22", "content": "The maximum noise decibel rating for dryer model DR-300 is 62 dB under full load capacity.", "source_file": "dr300_dryer_new.pdf", "product": "DR-300", "page": 3},
+            {"chunk_id": "eval_23", "content": "To enable Eco Mode on newly ingested Smart HVAC H-100 manual, navigate to Settings > Power Management > Eco Mode toggle ON.", "source_file": "h100_hvac_new.pdf", "product": "H-100", "page": 14},
+            {"chunk_id": "eval_24", "content": "The warranty period for replacement air filter components across all newly uploaded manuals is 2 years from date of purchase.", "source_file": "warranty_global_new.pdf", "product": "GENERIC", "page": 2},
+            {"chunk_id": "eval_25", "content": "To clear error code F02 thermal cut-off on toaster oven SO-500, unplug the unit for 10 minutes to reset the internal thermal fuse switch.", "source_file": "so500_oven_new.pdf", "product": "SO-500", "page": 19}
         ]
         embedded_chunks = []
         for item in raw_chunks:

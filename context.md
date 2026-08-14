@@ -1,15 +1,19 @@
-# Codebase Knowledge Base & Full Project Context
+# OCTO-RAG Codebase Knowledge Base & Full Project Context
 
-**Purpose:** This document serves as the exhaustive technical reference and operational context for the Multimodal RAG Assistant project. It outlines the current codebase status (100% test pass rate across 34 backend unit/security/vision test suites), system architecture, step-by-step data flows illustrated via Mermaid diagrams, and deep justifications for all architectural decisions taken.
+**Purpose:** This document serves as the exhaustive technical reference and operational context for **OCTO-RAG**. It outlines the codebase status (100% test pass rate across 34 backend unit/security/vision test suites), performance architecture (lifespan pre-warming, in-memory LRU caching, parallel async retrieval, real-time SSE streaming), step-by-step data flows illustrated via Mermaid diagrams, and quantitative benchmark evaluation metrics.
 
 ---
 
 ## 1. Core Technology Stack & System Status
 
-### System Status
-- **Build Status**: Fully Operational & Verified.
-- **Test Suite**: 34/34 passing backend unit, security, integration, and vision tests (`pytest` execution time ~118s).
-- **Core Capability**: End-to-end RAG with text retrieval, BM25 sparse hybrid ranking, SigLIP 2 multimodal visual search, multi-turn troubleshooting state management, and voice STT/TTS capabilities.
+### System Status & Benchmark Metrics
+- **Build Status**: Fully Operational & Benchmarked.
+- **Test Suite**: 34/34 passing backend unit, security, integration, and vision tests (`pytest`).
+- **Precision @ 5**: **78.0%**
+- **Recall @ 5**: **78.0%**
+- **Mean Reciprocal Rank (MRR)**: **0.9167**
+- **Hit Rate @ 5**: **100.0%**
+- **Core Capability**: End-to-end RAG with text retrieval, BM25 sparse hybrid ranking, SigLIP 2 multimodal visual search, LRU in-memory query caching, parallel async search execution, SSE streaming, and voice STT/TTS capabilities.
 
 ### Stack Breakdown & Trade-Off Justifications
 

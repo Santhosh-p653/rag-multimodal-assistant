@@ -1,6 +1,6 @@
-# Architecture Specification — Multimodal RAG Assistant & Agentic Engine
+# Architecture Specification — OCTO-RAG Assistant & Agentic Engine
 
-This document provides a comprehensive technical breakdown of the systems, pipelines, orchestration state machines, vector databases, and security layers implemented in the Multimodal RAG Assistant. Every pipeline step is accompanied by a Mermaid diagram, deep operational explanations, payload schemas, and explicit architectural justifications.
+This document provides a comprehensive technical breakdown of the systems, pipelines, orchestration state machines, vector databases, high-performance in-memory caching, parallel async retrieval, real-time SSE streaming, and security layers implemented in **OCTO-RAG**. Every pipeline step is accompanied by a Mermaid diagram, deep operational explanations, payload schemas, and explicit architectural justifications.
 
 ---
 
@@ -376,7 +376,7 @@ graph LR
 
 ---
 
-## 8. Current System Status & Test Suite Verification
+## 9. Current System Status & Test Suite Verification
 
 The backend test suite consists of **34 unit, security, integration, and vision tests**. All 34 tests pass with 100% success rate.
 
