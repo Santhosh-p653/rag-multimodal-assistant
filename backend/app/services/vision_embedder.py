@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib.util
+import logging
 
 # Fix for importlib ValueError: openai.__spec__ is not set when transformers checks package availability
 if "openai" in sys.modules and getattr(sys.modules["openai"], "__spec__", None) is None:
@@ -9,9 +10,10 @@ if "openai" in sys.modules and getattr(sys.modules["openai"], "__spec__", None) 
 import torch
 import threading
 from typing import List, Union
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 
 
 class VisionEmbedderService:
@@ -26,7 +28,7 @@ class VisionEmbedderService:
                 cls._instance._processor = None
                 cls._instance._device = "cuda" if torch.cuda.is_available() else "cpu"
                 cls._instance._model_name = settings.VISION_MODEL
-                print(f"[VisionEmbedder] Initialized singleton wrapper for device: {cls._instance._device}")
+                logger.info("[VisionEmbedder] Initialized singleton wrapper for device: %s", cls._instance._device)
         return cls._instance
 
     def _load_model(self):
@@ -34,7 +36,7 @@ class VisionEmbedderService:
         if self._model is None or self._processor is None:
             with self._lock:
                 if self._model is None:
-                    print(f"[VisionEmbedder] Loading SigLIP model '{self._model_name}' on {self._device}...")
+                    logger.info("[VisionEmbedder] Loading SigLIP model '%s' on %s...", self._model_name, self._device)
                     import sys
                     import importlib.util
                     if "openai" in sys.modules and getattr(sys.modules["openai"], "__spec__", None) is None:
@@ -44,8 +46,9 @@ class VisionEmbedderService:
                                 sys.modules["openai"].__spec__ = spec
                             else:
                                 del sys.modules["openai"]
-                        except Exception:
-                            pass
+                        except (AttributeError, KeyError) as exc:
+                            # Log but continue — failure here isn't fatal for model loading
+                            logger.debug("[VisionEmbedder] Could not fix openai __spec__: %s", exc)
 
                     from transformers import AutoProcessor, AutoModel
 
@@ -54,10 +57,11 @@ class VisionEmbedderService:
                         self._processor = AutoProcessor.from_pretrained(self._model_name, local_files_only=True)
                         self._model = AutoModel.from_pretrained(self._model_name, local_files_only=True).to(self._device)
                         self._model.eval()
-                        print(f"[VisionEmbedder] SigLIP model loaded from local cache.")
+                        logger.info("[VisionEmbedder] SigLIP model loaded from local cache.")
                         return
-                    except Exception:
-                        pass
+                    except (OSError, ValueError) as exc:
+                        # Local cache not available — fall back to online download
+                        logger.debug("[VisionEmbedder] Local model load failed, will try online: %s", exc)
 
                     # 2. Fallback to online download if not cached
                     orig_hf_offline = os.environ.get("HF_HUB_OFFLINE")
@@ -71,17 +75,15 @@ class VisionEmbedderService:
                         self._processor = AutoProcessor.from_pretrained(self._model_name)
                         self._model = AutoModel.from_pretrained(self._model_name).to(self._device)
                         self._model.eval()
-                        print(f"[VisionEmbedder] SigLIP model ready.")
-                    except Exception as e:
-                        print(f"[VisionEmbedder] Failed to load SigLIP model '{self._model_name}': {e}")
-                        raise e
+                        logger.info("[VisionEmbedder] SigLIP model ready.")
+                    except (OSError, ValueError) as exc:
+                        logger.exception("[VisionEmbedder] Failed to load SigLIP model '%s'", self._model_name)
+                        raise
                     finally:
                         if orig_hf_offline is not None:
                             os.environ["HF_HUB_OFFLINE"] = orig_hf_offline
                         if orig_tf_offline is not None:
                             os.environ["TRANSFORMERS_OFFLINE"] = orig_tf_offline
-
-
 
     def embed_image(self, image_input: Union[str, Image.Image]) -> List[float]:
         """Embed a single image file path or PIL Image into a normalized float vector."""
@@ -98,8 +100,8 @@ class VisionEmbedderService:
 
         try:
             self._load_model()
-        except Exception as e:
-            print(f"[VisionEmbedder] Cannot embed images, model unavailable: {e}")
+        except (RuntimeError, OSError) as exc:
+            logger.error("[VisionEmbedder] Cannot embed images, model unavailable: %s", exc)
             return []
 
         pil_images = []
@@ -108,13 +110,13 @@ class VisionEmbedderService:
                 try:
                     loaded = Image.open(img).convert("RGB")
                     pil_images.append(loaded)
-                except Exception as e:
-                    print(f"[VisionEmbedder] Failed to load image path '{img}': {e}")
+                except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+                    logger.warning("[VisionEmbedder] Failed to load image path '%s': %s", img, exc)
                     pil_images.append(Image.new("RGB", (224, 224), color=(0, 0, 0)))
             elif isinstance(img, Image.Image):
                 pil_images.append(img.convert("RGB"))
             else:
-                raise ValueError(f"Unsupported image type: {type(img)}")
+                raise TypeError(f"Unsupported image type: {type(img)}")
 
         try:
             with torch.no_grad():
@@ -133,8 +135,8 @@ class VisionEmbedderService:
                 image_features = torch.nn.functional.normalize(image_features, dim=-1)
                 vectors = image_features.cpu().numpy().tolist()
                 return vectors
-        except Exception as e:
-            print(f"[VisionEmbedder] Image embedding batch execution failed: {e}")
+        except (RuntimeError, ValueError) as exc:
+            logger.exception("[VisionEmbedder] Image embedding batch execution failed: %s", exc)
             return []
 
     def embed_text(self, text: str) -> List[float]:
@@ -144,8 +146,8 @@ class VisionEmbedderService:
 
         try:
             self._load_model()
-        except Exception as e:
-            print(f"[VisionEmbedder] Cannot embed text query, model unavailable: {e}")
+        except (RuntimeError, OSError) as exc:
+            logger.error("[VisionEmbedder] Cannot embed text query, model unavailable: %s", exc)
             return []
 
         try:
@@ -165,7 +167,6 @@ class VisionEmbedderService:
                 text_features = torch.nn.functional.normalize(text_features, dim=-1)
                 vector = text_features[0].cpu().numpy().tolist()
                 return vector
-        except Exception as e:
-            print(f"[VisionEmbedder] Text embedding failed for query '{text}': {e}")
+        except (RuntimeError, ValueError) as exc:
+            logger.exception("[VisionEmbedder] Text embedding failed for query '%s': %s", text, exc)
             return []
-
