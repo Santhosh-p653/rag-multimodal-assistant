@@ -9,7 +9,9 @@ import {
   ArrowLeft,
   Loader2,
   BookOpen,
-  Plus
+  Plus,
+  Search,
+  Info
 } from "lucide-react";
 import { uploadDocument, UploadResponse } from "../lib/api";
 
@@ -18,7 +20,7 @@ interface UploadedItem {
   filename: string;
   markdownFile: string;
   timestamp: Date;
-  status: "success" | "error";
+  status: "success" | "duplicate" | "error";
   details?: string;
 }
 
@@ -29,6 +31,8 @@ export default function Admin() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [history, setHistory] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +51,7 @@ export default function Admin() {
     setIsDragging(false);
     setError(null);
     setSuccess(null);
+    setDuplicateNotice(null);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
@@ -57,6 +62,7 @@ export default function Admin() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     setError(null);
     setSuccess(null);
+    setDuplicateNotice(null);
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
     }
@@ -72,24 +78,32 @@ export default function Admin() {
     setProgress(0);
     setError(null);
     setSuccess(null);
+    setDuplicateNotice(null);
+
+    // Check if file is already in history
+    const isDuplicate = history.some(h => h.filename === selectedFile.name && h.status === "success");
 
     try {
       const result: UploadResponse = await uploadDocument(selectedFile, (pct) => {
         setProgress(pct);
       });
 
-      setSuccess(
-        `✓ "${result.filename}" processed and added to assistant manuals. Ready for search!`
-      );
+      if (isDuplicate) {
+        setDuplicateNotice(`This manual (${result.filename}) was already in Octo RAG. Re-indexed latest version.`);
+      } else {
+        setSuccess(
+          `✓ "${result.filename}" processed and added to assistant manuals. Ready for search!`
+        );
+      }
 
       const newItem: UploadedItem = {
         id: Math.random().toString(36).substring(7),
         filename: result.filename,
         markdownFile: result.markdown_file,
         timestamp: new Date(),
-        status: "success",
+        status: isDuplicate ? "duplicate" : "success",
       };
-      setHistory((prev) => [newItem, ...prev]);
+      setHistory((prev) => [newItem, ...prev.filter(h => h.filename !== result.filename)]);
       setSelectedFile(null);
     } catch (err: any) {
       const errorMessage = err.message || "Failed to process the document.";
@@ -117,6 +131,10 @@ export default function Admin() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
   };
+
+  const filteredHistory = history.filter((item) =>
+    item.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-octo-bg text-octo-charcoal flex flex-col">
@@ -257,6 +275,16 @@ export default function Admin() {
             </div>
           )}
 
+          {duplicateNotice && (
+            <div className="p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-card text-xs flex items-start gap-3 animate-fadeIn">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">Manual Already Exists</p>
+                <p className="mt-1 leading-relaxed">{duplicateNotice}</p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-card text-xs flex items-start gap-3 animate-fadeIn">
               <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
@@ -270,9 +298,25 @@ export default function Admin() {
 
         {/* ── Document Library History ────────────────────────────────────────── */}
         <div className="octo-card p-6 md:p-8 space-y-6">
-          <div className="flex items-center gap-2 border-b border-octo-border pb-4">
-            <BookOpen className="h-5 w-5 text-octo-orange" />
-            <h2 className="text-lg font-semibold text-octo-charcoal">Session Upload Log</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-octo-border pb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-octo-orange" />
+              <h2 className="text-lg font-semibold text-octo-charcoal">Session Upload Log</h2>
+            </div>
+
+            {/* Filter Search Input */}
+            {history.length > 0 && (
+              <div className="relative flex items-center">
+                <Search className="h-3.5 w-3.5 text-octo-muted absolute left-3" />
+                <input
+                  type="text"
+                  placeholder="Search manuals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 bg-octo-surface-warm border border-octo-border rounded-lg text-xs text-octo-charcoal focus:outline-none focus:border-octo-orange w-48"
+                />
+              </div>
+            )}
           </div>
 
           {history.length === 0 ? (
@@ -281,9 +325,13 @@ export default function Admin() {
               <p className="text-sm font-medium text-octo-charcoal">No documents uploaded in this session yet.</p>
               <p className="text-xs text-octo-muted mt-1">Uploaded manuals will appear here after ingestion.</p>
             </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="text-center py-6 text-xs text-octo-muted">
+              No manuals found matching "{searchQuery}".
+            </div>
           ) : (
             <div className="divide-y divide-octo-border border border-octo-border rounded-card overflow-hidden bg-white">
-              {history.map((item) => (
+              {filteredHistory.map((item) => (
                 <div
                   key={item.id}
                   className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs hover:bg-octo-surface-warm/50 transition-colors gap-3"
@@ -291,7 +339,7 @@ export default function Admin() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`p-2 rounded-btn border shrink-0 ${
-                        item.status === "success"
+                        item.status === "success" || item.status === "duplicate"
                           ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                           : "bg-red-50 border-red-200 text-red-700"
                       }`}
@@ -302,15 +350,25 @@ export default function Admin() {
                       <p className="font-semibold text-octo-charcoal text-sm truncate">{item.filename}</p>
                       <p className="text-xs text-octo-muted mt-0.5">
                         Uploaded at {item.timestamp.toLocaleTimeString()} · Status:{" "}
-                        {item.status === "success" ? "✓ Ready for search" : "Upload error"}
+                        {item.status === "success"
+                          ? "✓ Ready for search"
+                          : item.status === "duplicate"
+                          ? "ℹ️ Re-indexed existing manual"
+                          : "Upload error"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center self-end sm:self-center">
-                    {item.status === "success" ? (
+                  <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
+                    <Link
+                      href="/"
+                      className="px-3 py-1 rounded-btn bg-octo-surface-warm hover:bg-[#E4DCD0] text-octo-charcoal border border-octo-border text-xs font-semibold transition-colors"
+                    >
+                      Ask about this
+                    </Link>
+                    {item.status === "success" || item.status === "duplicate" ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        v1 · Ready
+                        Ready
                       </span>
                     ) : (
                       <span

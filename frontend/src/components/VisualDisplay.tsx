@@ -1,14 +1,30 @@
 import React, { useState } from "react";
-import { Image as ImageIcon, Maximize2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { Image as ImageIcon, Maximize2, X, ZoomIn, ZoomOut, AlertCircle } from "lucide-react";
 import { RetrievedImage } from "./MessageBubble";
 
 interface VisualDisplayProps {
-  images: RetrievedImage[];
+  images?: RetrievedImage[];
+  isDiagramRequested?: boolean;
 }
 
-export const VisualDisplay: React.FC<VisualDisplayProps> = ({ images }) => {
+export const VisualDisplay: React.FC<VisualDisplayProps> = ({ images = [], isDiagramRequested = false }) => {
   const [selectedImage, setSelectedImage] = useState<RetrievedImage | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
+
+  // Honest Diagram Fallback: If user asked for a diagram but no image exists in manual payload
+  if ((!images || images.length === 0) && isDiagramRequested) {
+    return (
+      <div className="my-3 p-4 octo-card-subtle text-amber-800 text-xs flex items-start gap-2.5 border border-amber-200">
+        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-octo-charcoal text-xs">No Diagram Available</p>
+          <p className="mt-0.5 text-octo-muted leading-relaxed">
+            No diagram or schematic drawing was found in the uploaded manual for this specific component.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!images || images.length === 0) return null;
 

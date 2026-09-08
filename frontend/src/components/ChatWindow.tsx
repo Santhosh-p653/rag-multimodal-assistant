@@ -6,9 +6,17 @@ interface ChatWindowProps {
   messages: Message[];
   isLoading?: boolean;
   isMuted?: boolean;
+  onSuggestionClick?: (text: string) => void;
+  lastUserQuery?: string;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isMuted = true }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({
+  messages,
+  isLoading,
+  isMuted = true,
+  onSuggestionClick,
+  lastUserQuery = "",
+}) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,8 +25,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isM
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 max-w-[850px] mx-auto w-full">
-      {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} isMuted={isMuted} />
+      {messages.map((msg, index) => (
+        <MessageBubble
+          key={msg.id}
+          message={msg}
+          isMuted={isMuted}
+          onSuggestionClick={onSuggestionClick}
+          userQuery={msg.sender === "user" ? msg.text : lastUserQuery}
+        />
       ))}
 
       {/* Loading State Indicator */}
@@ -29,7 +43,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading, isM
               <Bot className="h-5 w-5 text-octo-orange animate-pulse" />
             </div>
             <div className="octo-card p-4 rounded-tl-none flex items-center gap-2">
-              <span className="text-sm font-medium text-octo-muted">Checking your manual...</span>
+              <span className="text-sm font-medium text-octo-muted">Searching your manuals...</span>
               <div className="flex gap-1.5 ml-2">
                 <span className="h-2 w-2 bg-octo-orange rounded-full animate-bounce"></span>
                 <span className="h-2 w-2 bg-octo-orange rounded-full animate-bounce [animation-delay:0.2s]"></span>

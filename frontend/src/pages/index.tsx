@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Wrench,
@@ -8,14 +8,15 @@ import {
   Volume2,
   VolumeX,
   Globe,
-  HelpCircle,
-  CheckCircle2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  RefreshCw,
+  Type
 } from "lucide-react";
 import { ChatWindow } from "../components/ChatWindow";
 import { ChatInput } from "../components/ChatInput";
 import { AudioRecorder } from "../components/AudioRecorder";
 import { Message } from "../components/MessageBubble";
+import { ToastContainer, ToastMessage } from "../components/Toast";
 import { sendMessage, fetchFiles, transcribeAudio } from "../lib/api";
 
 interface HealthInfo {
@@ -24,17 +25,72 @@ interface HealthInfo {
   vectors_stored: number;
 }
 
+const LANG_NAMES: Record<string, string> = {
+  auto: "Auto Detect",
+  en: "English",
+  hi: "हिंदी (Hindi)",
+  ta: "தமிழ் (Tamil)",
+  te: "తెలుగు (Telugu)",
+  kn: "ಕನ್ನಡ (Kannada)",
+  ml: "മലയാളം (Malayalam)",
+  bn: "বাংলা (Bengali)",
+  mr: "मराठी (Marathi)",
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastQuery, setLastQuery] = useState<string | null>(null);
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [hintLang, setHintLang] = useState("auto");
   const [isTroubleshooting, setIsTroubleshooting] = useState(false);
+  const [textSize, setTextSize] = useState<"standard" | "large" | "xl">("standard");
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((type: ToastMessage["type"], title: string, description?: string) => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts((prev) => [...prev, { id, type, title, description }]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Offline / Reconnect Network Listener
+  useEffect(() => {
+    const handleOffline = () => {
+      addToast("warning", "You're offline", "Check your internet connection.");
+    };
+    const handleOnline = () => {
+      addToast("success", "Connection restored", "You are back online.");
+    };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [addToast]);
+
+  // Load saved text size preference
+  useEffect(() => {
+    const savedSize = localStorage.getItem("octo_text_size") as "standard" | "large" | "xl";
+    if (savedSize && ["standard", "large", "xl"].includes(savedSize)) {
+      setTextSize(savedSize);
+    }
+  }, []);
+
+  const handleTextSizeChange = (newSize: "standard" | "large" | "xl") => {
+    setTextSize(newSize);
+    localStorage.setItem("octo_text_size", newSize);
+  };
 
   // Check backend health on mount
   useEffect(() => {
@@ -71,7 +127,10 @@ export default function Home() {
   }, [backendOnline]);
 
   const handleSend = async (text: string) => {
+    if (!text || !text.trim()) return;
     setErrorMessage(null);
+    setLastQuery(text);
+
     const userMsg: Message = {
       id: Math.random().toString(36).substring(7),
       sender: "user",
@@ -93,18 +152,18 @@ export default function Home() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setErrorMessage(err.message || "Could not reach the assistant.");
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(7),
-          sender: "assistant",
-          text: "⚠️ Connection Error: Could not reach the assistant. Please check if the backend is running.",
-          timestamp: new Date(),
-        },
-      ]);
+      const humanError = err.message || "Couldn't connect to the assistant server.";
+      setErrorMessage(humanError);
+      addToast("error", "Request Failed", humanError);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (lastQuery) {
+      addToast("info", "Retrying query...", lastQuery);
+      handleSend(lastQuery);
     }
   };
 
@@ -116,18 +175,29 @@ export default function Home() {
       if (data.text && data.text.trim()) {
         await handleSend(data.text);
       } else {
-        setErrorMessage("Speech was not recognized clearly. Please tap the microphone and try speaking again.");
+        const msg = "Speech was not recognized clearly. Please tap the microphone and try speaking again.";
+        setErrorMessage(msg);
+        addToast("warning", "Voice Recognition", msg);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to transcribe audio.");
+      const humanError = err.message || "Failed to transcribe audio.";
+      setErrorMessage(humanError);
+      addToast("error", "Microphone Error", humanError);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleLanguageChange = (newLang: string) => {
+    setHintLang(newLang);
+    const name = LANG_NAMES[newLang] || newLang;
+    addToast("info", `Language set to ${name}`);
+  };
+
   const clearChat = () => {
     setMessages([]);
     setErrorMessage(null);
+    setLastQuery(null);
     setIsTroubleshooting(false);
   };
 
@@ -137,7 +207,9 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-octo-bg text-octo-charcoal">
+    <div className={`flex flex-col min-h-screen bg-octo-bg text-octo-charcoal size-${textSize}`}>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       {/* ── Top Header ─────────────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-octo-border sticky top-0 z-30 shadow-sm">
         <div className="max-w-[1100px] mx-auto px-4 h-16 flex items-center justify-between">
@@ -164,7 +236,10 @@ export default function Home() {
                 <SlidersHorizontal className="h-3.5 w-3.5 text-octo-orange" />
                 <select
                   value={selectedFile || ""}
-                  onChange={(e) => setSelectedFile(e.target.value || null)}
+                  onChange={(e) => {
+                    setSelectedFile(e.target.value || null);
+                    if (e.target.value) addToast("info", "Filter applied", e.target.value);
+                  }}
                   className="bg-octo-surface-warm border border-octo-border rounded-lg px-2.5 py-1 text-xs text-octo-charcoal font-medium focus:outline-none focus:border-octo-orange"
                 >
                   <option value="">All Manuals</option>
@@ -177,12 +252,27 @@ export default function Home() {
               </div>
             )}
 
+            {/* Accessibility Text Size Selector */}
+            <div className="hidden sm:flex items-center gap-1 text-xs text-octo-muted border-l border-octo-border pl-3">
+              <Type className="h-3.5 w-3.5 text-octo-muted" />
+              <select
+                value={textSize}
+                onChange={(e) => handleTextSizeChange(e.target.value as any)}
+                className="bg-transparent border-none text-xs text-octo-charcoal font-medium focus:outline-none cursor-pointer"
+                title="Adjust font readability size"
+              >
+                <option value="standard">A Standard</option>
+                <option value="large">A+ Large</option>
+                <option value="xl">A++ Extra Large</option>
+              </select>
+            </div>
+
             {/* Language Selector */}
-            <div className="flex items-center gap-1 text-xs text-octo-muted">
+            <div className="flex items-center gap-1 text-xs text-octo-muted border-l border-octo-border pl-3">
               <Globe className="h-3.5 w-3.5 text-octo-muted hidden sm:inline" />
               <select
                 value={hintLang}
-                onChange={(e) => setHintLang(e.target.value)}
+                onChange={(e) => handleLanguageChange(e.target.value)}
                 className="bg-transparent border-none text-xs text-octo-charcoal font-medium focus:outline-none cursor-pointer"
               >
                 <option value="auto">🌐 Auto Detect Language</option>
@@ -224,17 +314,31 @@ export default function Home() {
 
       {/* ── Main Content Body ─────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col max-w-[1100px] w-full mx-auto p-4 md:p-6">
-        {/* Error Alert Notice */}
+        {/* Human-Readable Error Recovery Alert */}
         {errorMessage && (
-          <div className="mb-4 p-4 rounded-card bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-2.5 animate-fadeIn">
-            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold">Notice</p>
-              <p className="mt-0.5">{errorMessage}</p>
+          <div className="mb-4 p-4 rounded-card bg-red-50 border border-red-200 text-red-700 text-sm flex items-center justify-between gap-3 animate-fadeIn">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+              <p className="font-medium truncate">{errorMessage}</p>
             </div>
-            <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-800 text-xs font-bold">
-              Dismiss
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {lastQuery && (
+                <button
+                  onClick={handleRetry}
+                  disabled={isLoading}
+                  className="px-3 py-1 rounded-btn bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                  <span>Try again</span>
+                </button>
+              )}
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-red-500 hover:text-red-800 text-xs font-bold px-2 py-1"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -331,12 +435,18 @@ export default function Home() {
             </div>
 
             {/* Chat Stream Window */}
-            <ChatWindow messages={messages} isLoading={isLoading} isMuted={isMuted} />
+            <ChatWindow
+              messages={messages}
+              isLoading={isLoading}
+              isMuted={isMuted}
+              onSuggestionClick={handleSend}
+              lastUserQuery={lastQuery || ""}
+            />
 
-            {/* Guided Troubleshooting Quick Choice Buttons (if in troubleshooting mode) */}
+            {/* Guided Troubleshooting Quick Choice Buttons */}
             {isTroubleshooting && !isLoading && (
               <div className="max-w-[780px] mx-auto w-full mb-3 p-4 octo-card-subtle flex flex-col gap-3 animate-fadeIn">
-                <span className="text-xs font-semibold text-octo-charcoal">Quick answer selection:</span>
+                <span className="text-xs font-semibold text-octo-charcoal">Quick repair response:</span>
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => handleSend("Yes, the power light is ON.")}
