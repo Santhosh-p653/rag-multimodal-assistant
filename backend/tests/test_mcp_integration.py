@@ -59,6 +59,33 @@ def test_mcp_manual_search_tool():
         assert "Retrieval Confidence: HIGH" in res
 
 
+def test_mcp_run_agent_tool():
+    from app.mcp.mcp_client import invoke_mcp_agent
+
+    with patch("app.services.agent_flow.agent_graph.invoke") as mock_graph:
+        mock_graph.return_value = {
+            "answer": "Grounded answer from LangGraph agent",
+            "steps": ["Step 1: Check power"],
+            "status": "answered"
+        }
+        res = invoke_mcp_agent("Why is freezer not cooling?")
+        assert res["answer"] == "Grounded answer from LangGraph agent"
+        assert res["status"] == "answered"
+
+
+def test_mcp_troubleshoot_tool():
+    from app.mcp.mcp_client import invoke_mcp_troubleshoot
+
+    with patch("app.services.workflow_manager.process_troubleshoot_turn") as mock_ts:
+        async def dummy_ts(sid, msg):
+            return {"step": 1, "status": "QUESTION", "answer": "Is power light on?"}
+        mock_ts.side_effect = dummy_ts
+
+        res = invoke_mcp_troubleshoot("sess_123", "Fridge not working")
+        assert res["status"] == "QUESTION"
+        assert res["answer"] == "Is power light on?"
+
+
 def test_mcp_sse_endpoint_mounted():
     # Verify /mcp route exists on FastAPI app
     routes = [r.path for r in fastapi_app.routes]

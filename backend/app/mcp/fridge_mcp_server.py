@@ -197,6 +197,92 @@ def lookup_part_number(model: str, component_name: str) -> dict:
     }
 
 
+# --- LangGraph Unified Agentic Execution Tool ---
+@mcp.tool()
+def run_octo_agent(query: str, source_input: str = "", session_id: str = "") -> dict:
+    """
+    Execute the full Octo RAG LangGraph agentic graph (agent_flow.py).
+    Scrapes web pages or ingests files if provided, performs version checking, fuzzy product matching,
+    waterfall hybrid retrieval, and returns grounded answers with diagnostic steps and images.
+
+    Args:
+        query: User question or technical query.
+        source_input: Optional URL to scrape or local filename.
+        session_id: Optional session identifier.
+
+    Returns:
+        Dictionary containing answer, steps, sources, product_id, images, and status.
+    """
+    try:
+        import uuid
+        from app.services.agent_flow import agent_graph
+
+        sid = session_id.strip() if session_id else str(uuid.uuid4())
+        inputs = {
+            "query": query,
+            "source_input": source_input.strip() if source_input else None,
+            "source_content": None,
+            "product_id": None,
+            "clarification_needed": False,
+            "retrieved_chunks": [],
+            "sources": [],
+            "mode": "qa",
+            "answer": "",
+            "steps": [],
+            "content_changed": False,
+            "version_info": None,
+            "clarification_options": [],
+            "session_id": sid,
+            "input_confidence": "LOW",
+            "retrieval_confidence": "LOW",
+            "clarification_question": None,
+            "clarification_attempts": 0,
+            "resolved_query": None,
+            "retrieval_retries": 0,
+            "understood_data": {}
+        }
+        result = agent_graph.invoke(inputs)
+        return result
+    except Exception as e:
+        return {"answer": f"Agent workflow execution failed: {str(e)}", "status": "error"}
+
+
+# --- Stateful Troubleshooting Turn Tool ---
+@mcp.tool()
+def troubleshoot_appliance_turn(session_id: str, message: str) -> dict:
+    """
+    Execute a turn in the stateful multi-turn troubleshooting engine (workflow_manager.py).
+    Guides technicians step-by-step through diagnostic paths (QUESTION -> ACTION -> VERIFY -> RESOLVED/ESCALATE).
+
+    Args:
+        session_id: Active troubleshooting session ID.
+        message: Technician's response or diagnostic answer.
+
+    Returns:
+        Dictionary containing current state, next diagnostic question/action, options, and status.
+    """
+    try:
+        import asyncio
+        from app.services.workflow_manager import process_troubleshoot_turn
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        if loop.is_running():
+            import nest_asyncio
+            nest_asyncio.apply()
+            result = loop.run_until_complete(process_troubleshoot_turn(session_id, message))
+        else:
+            result = loop.run_until_complete(process_troubleshoot_turn(session_id, message))
+
+        return result
+    except Exception as e:
+        return {"answer": f"Troubleshooting turn failed: {str(e)}", "status": "error"}
+
+
 if __name__ == "__main__":
     print("[Octo RAG MCP] Starting Refrigerator Diagnostic MCPServer...", file=sys.stderr)
     mcp.run()
