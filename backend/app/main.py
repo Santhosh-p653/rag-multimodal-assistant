@@ -47,6 +47,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.mcp.fridge_mcp_server import mcp as fridge_mcp_server
+
+# Mount MCP Server (Server-Sent Events transport at /mcp/sse)
+app.mount("/mcp", fridge_mcp_server.sse_app())
+
 # Eagerly initialize services (loads embedding model at startup)
 parser_service = ParserService()
 
