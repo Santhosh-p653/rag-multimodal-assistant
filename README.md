@@ -1,36 +1,59 @@
-# OCTO-RAG: Multimodal RAG Assistant & Agentic Troubleshooting Engine
+# 🐙 OCTO RAG: Multimodal Refrigerator Technical Assistant & MCP Server
 
-A production-ready **Multimodal Retrieval-Augmented Generation (RAG) Assistant** and **State-Guided Agentic Engine** designed to ingest technical manuals, render vector diagrams, perform context-aware hierarchical search, execute multi-turn diagnostic troubleshooting workflows, stream voice interaction, and enforce security policies.
+A production-ready **Multimodal Retrieval-Augmented Generation (RAG) Assistant**, **State-Guided Troubleshooting Engine**, and **Model Context Protocol (MCP) Diagnostic Server** designed specifically for technical refrigerator, freezer, and cooling appliance support.
+
+Octo RAG combines Next.js 14 human-centered UI, FastAPI async endpoints, SigLIP 2 visual diagram retrieval, hybrid RRF search, pre-LLM security domain guardrails, and standard MCP server tool capabilities.
 
 ---
 
 ## 🎯 Operational Problems Solved
 
-This platform directly resolves high-impact enterprise, technical, and field-operation pain points:
-
-* **⏱️ High Mean Time to Resolution (MTTR)**: Eliminates manual skimming through hundreds of pages of PDF/DOCX documentation by extracting grounded answers and step-by-step diagnostic sequences in seconds.
-* **💸 Escalation Ticket Overload**: Serves as an automated Tier-1/Tier-2 support copilot. Its state-guided decision engine exhausts manual-backed diagnostic steps before triggering explicit human escalation (`ESCALATE`), reducing costly support ticket escalations.
-* **🎓 Onboarding Friction for Junior Technicians**: Enables new support agents and field engineers to resolve complex technical queries instantly without memorizing extensive product catalogs.
+* **⏱️ High Mean Time to Resolution (MTTR)**: Eliminates manual skimming through hundreds of pages of PDF/DOCX appliance manuals by extracting grounded answers and step-by-step diagnostic sequences in seconds.
+* **💸 Escalation Ticket Overload**: Serves as an automated Tier-1/Tier-2 technician copilot. Its state-guided decision engine exhausts manual-backed diagnostic steps before triggering explicit human escalation (`ESCALATE`), reducing costly support ticket escalations.
 * **🛑 Hands-Free Field Maintenance Constraints**: Provides a low-latency voice layer (STT + TTS) so technicians operating physical hardware can ask questions and hear audio instructions without stopping work to type.
-* **🏢 Knowledge Silos & Product Line Confusion**: Automates zero-shot metadata extraction and 3-level priority filtering (Exact Product $\rightarrow$ Family Prefix $\rightarrow$ Global) to prevent agents from retrieving fixes intended for different hardware models.
+* **🛡️ Zero-Token Cost Protection on Off-Topic Queries**: Enforces a Pre-LLM Refrigerator Domain Guardrail (`is_out_of_domain`), intercepting automotive, cooking, weather, financial, or off-topic prompts before reaching LLMs—expending **0 API tokens** on off-topic requests.
+* **🔌 Universal Local Assistant Connectivity (MCP)**: Exposes refrigerator diagnostic tools (`lookup_error_code`, `get_thermistor_ohm_table`, `lookup_part_number`, `search_fridge_manuals`) via Model Context Protocol (MCP), plugging directly into **Claude Desktop**, IDEs, and local AI clients.
 * **📋 SOP Non-Compliance & Audit Blind Spots**: Logs complete diagnostic session histories in a structured registry, recording every question asked, user answer, recommended action, and manual chunk reference for auditability.
 * **⚡ Redundant Ingestion Compute Overhead**: Uses SQLite MD5 content-hash caching to detect unchanged files or web pages, skipping redundant chunking, embedding, and vector DB indexing.
-* **🛡️ Security & Prompt Injection Vulnerabilities**: Enforces multi-tier security including `slowapi` rate limiters, upload file size/MIME guards, regex prompt injection filters (`prompt_guard.py`), and context-isolated prompt construction.
 
 ---
 
 ## 🚀 Key Features
 
+* **🎨 Human-Centered Octo RAG Interface**: Built with Next.js 14, React, TypeScript, and Tailwind CSS. Features a warm off-white canvas (`#F7F4EE`), burnt orange accent (`#C65D3A`), structured information cards, voice-first hero controls (`🎤 Tap to speak`), and guided step-by-step troubleshooting UI.
+* **🔌 FastMCP Diagnostic Server Integration**: Runs a native MCP server (`fridge_mcp_server.py`) with stdio and FastAPI SSE transport (`/mcp/sse`). Exposes tools for error code lookup (`Er FF`, `SY EF`, `22 E`, `E5`), thermistor resistance calculation (kOhm), OEM part lookup, and manual vector search.
+* **🛡️ Pre-LLM Security & Domain Boundary**: Intercepts prompt injections (`is_prompt_injection`) and non-refrigerator domain prompts (`is_out_of_domain`) at the FastAPI gateway level before calling LLM APIs.
 * **📄 Multimodal Document & Visual Ingestion**: Converts uploads (`PDF`, `DOCX`, `PPTX`, `XLSX`, `TXT`) into Markdown using **Microsoft MarkItDown**. Extracts raster images and renders high-resolution vector path diagrams via **PyMuPDF**, applying perceptual hashing (`pHash`) to drop repeated header/footer logos.
 * **🖼️ SigLIP 2 Visual Semantic Search**: Generates 768-dim multimodal embeddings using **Google SigLIP 2** (`google/siglip-base-patch16-224`) stored in a dedicated `manual_images` Qdrant collection, running parallel text and visual image retrieval.
 * **🔍 Hierarchical Hybrid Search (RRF)**: Executes a 3-level prioritized waterfall search (Exact Product $\rightarrow$ Product Family $\rightarrow$ Global Search) combining dense vectors (`SentenceTransformers all-MiniLM-L6-v2`) and in-memory sparse keyword matching (`BM25`) using **Reciprocal Rank Fusion (RRF)**:
   $$\text{RRF Score}(d) = \sum_{m \in M} \frac{1}{60 + r_m(d)}$$
-* **🦜 Unified LangGraph Agentic Engine**: Orchestrates URL scraping (BeautifulSoup4), file version control, fuzzy product model matching, intent classification (`qa` vs `troubleshoot`), and step generation via a bounded **LangGraph `StateGraph`** (`POST /agent/run`).
+* **🦜 Bounded LangGraph Agentic Engine**: Orchestrates URL scraping (BeautifulSoup4), file version control, fuzzy product model matching, intent classification (`qa` vs `troubleshoot`), and step generation via a bounded **LangGraph `StateGraph`** (`POST /agent/run`).
 * **🤖 Stateful Troubleshooting Orchestration**: Guides users through diagnostic trees tracking active state (`QUESTION`, `ACTION`, `VERIFY`, `RESOLVED`, `ESCALATE`), session history, and pinned RAG context blocks across user turns.
 * **🎙️ Hybrid Voice Layer (STT & TTS)**: Transcribes incoming audio using local `faster-whisper` (`int8` CPU) for English or Sarvam AI (`Saaras v3 API`) for Indic/auto languages. Synthesizes speech outputs using **edge-tts** with Microsoft Neural voices.
-* **⚡ Multi-Tier Caching Architecture**: Features in-memory LRU query retrieval caching (`_RETRIEVAL_CACHE`), LRU text vector embedding caching (`@lru_cache`), SQLite document content hash caching (`registry.db`), and pre-cached ML model weights.
-* **🛡️ Hardened API Security**: Integrated `slowapi` rate limits across all routes, file upload guards ($\le 25\text{MB}$, MIME validation), regex jailbreak detection, and isolated system prompts.
-* **🧪 34-Test Verification Suite**: Includes 34 passing unit, integration, vision, security, and performance test suites (`pytest`) running in isolated in-memory test environments.
+* **🧪 40-Test Verification Suite**: 100% passing backend unit, security, prompt injection, domain boundary, retriever, vision pipeline, and MCP integration test suite (`pytest`).
+
+---
+
+## 🔌 Connecting Claude Desktop to Octo RAG (MCP)
+
+Octo RAG connects natively to **Claude Desktop** via MCP:
+
+Add the following to your local `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "octo-rag": {
+      "command": "python",
+      "args": [
+        "C:/Users/SAMSUNG/OneDrive/Desktop/rag-multimodal-assistant/backend/app/mcp/fridge_mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+Restart Claude Desktop, and Claude will automatically discover Octo RAG's manual search, error code, thermistor, and part lookup tools!
 
 ---
 
@@ -59,6 +82,7 @@ All API routes are protected by **`slowapi` IP rate limiters**:
 | `/troubleshoot`| `POST` | `20 / minute` | Limits state-guided diagnostic turns |
 | `/speak` | `POST` | `20 / minute` | Protects edge-tts text-to-speech generation |
 | `/chat/stream` | `POST` | `30 / minute` | Controls Server-Sent Events (SSE) streaming connections |
+| `/mcp/sse` | `GET` | Starlette/FastAPI | Streamable MCP Server-Sent Events endpoint |
 | `/document-images/...` | `GET` | `60 / minute` | Prevents automated document image scraping |
 
 ---
@@ -67,11 +91,16 @@ All API routes are protected by **`slowapi` IP rate limiters**:
 
 ```mermaid
 graph TD
-    Client([Client / Frontend UI]) --> API[FastAPI Backend / main.py]
+    Client([Next.js Frontend UI / Claude Desktop / IDE]) --> API[FastAPI Backend / main.py]
     
     subgraph Security Layer
         API --> RateLimiter[slowapi Rate Limiter]
-        RateLimiter --> PromptGuard[Prompt Guard / Jailbreak Shield]
+        RateLimiter --> PromptGuard[Prompt Guard: Injection & Domain Boundary]
+    end
+
+    subgraph MCP Server Layer
+        API --> MCPServer[fridge_mcp_server.py: FastMCP Server]
+        MCPServer --> MCPTools[Error Code, Thermistor Ohm, Part Lookup & Manual Tools]
     end
 
     subgraph Document Ingestion Pipeline
@@ -99,8 +128,6 @@ graph TD
     end
 ```
 
-For complete architectural details, module-by-module problem-solving breakdowns, and state transition flowcharts, see **[architecture.md](architecture.md)** and **[context.md](context.md)**.
-
 ---
 
 ## 📁 Project Structure
@@ -110,14 +137,18 @@ rag-multimodal-assistant/
 ├── docker-compose.yml         # Container configuration for Backend + Frontend
 ├── architecture.md            # Complete architecture specs, sub-module breakdowns & flowcharts
 ├── context.md                 # Full project reference context, test suite matrix & benchmarks
-├── contributing.md            # Onboarding & Local Setup guide
+├── README.md                  # Root project documentation
 ├── backend/
 │   ├── Dockerfile             # Multi-stage Dockerfile with pre-cached model weights
-│   ├── requirements.txt       # Hardened requirements (slowapi, pytest, bandit, etc.)
+│   ├── requirements.txt       # Hardened requirements (fastapi, mcp, slowapi, pytest, etc.)
 │   ├── .env.example           # Environment template file
 │   └── app/
-│       ├── main.py            # FastAPI entrypoint, routes & rate limiters
+│       ├── main.py            # FastAPI entrypoint, MCP mount, routes & rate limiters
 │       ├── config.py          # Unified Settings manager using pathlib.Path
+│       ├── mcp/
+│       │   ├── __init__.py    # MCP package initialization
+│       │   ├── fridge_mcp_server.py # FastMCP diagnostic & manual search server
+│       │   └── mcp_client.py  # Diagnostic tool client helper service
 │       └── services/
 │           ├── parser.py      # MarkItDown parse & document ingestion engine
 │           ├── image_extractor.py # PyMuPDF image & vector region extractor
@@ -132,11 +163,11 @@ rag-multimodal-assistant/
 │           ├── query_understanding.py # Query confidence analyzer & intent classifier
 │           ├── context_reconstruction.py # Multi-turn query rewriter
 │           ├── session_store.py   # SQLite multi-turn session state store
-│           ├── prompt_guard.py    # Security regex injection guard
+│           ├── prompt_guard.py    # Security regex injection & domain boundary guard
 │           ├── agent_flow.py      # LangGraph unified agentic StateGraph
 │           ├── workflow_manager.py# Multi-turn troubleshooting state machine
 │           └── audio.py           # Speech Transcriber (Whisper/Sarvam) & TTS (edge-tts)
-└── frontend/                  # Next.js UI application codebase
+└── frontend/                  # Next.js 14 UI application codebase
 ```
 
 ---
@@ -148,7 +179,7 @@ Create a `backend/.env` file from the example template:
 ```bash
 cp backend/.env.example backend/.env
 ```
-Configure your LLM provider and optional API keys:
+Configure your LLM provider and API keys:
 ```env
 LLM_PROVIDER=groq
 GROQ_API_KEY=your_groq_api_key
@@ -157,13 +188,13 @@ GROQ_API_KEY=your_groq_api_key
 ```
 
 ### 2. Launch with Docker Compose
-To build and run the entire ecosystem (FastAPI Backend + Next.js Frontend + pre-cached model weights) locally:
+To build and run the entire ecosystem (FastAPI Backend + Next.js Frontend + MCP Server + pre-cached model weights) locally:
 ```bash
 docker compose up --build
 ```
 
-### 3. Run Test Suite
-To run the complete 34-test verification suite locally inside the `backend` directory:
+### 3. Run Verification Test Suite
+To run the complete 40-test verification suite locally inside the `backend` directory:
 ```bash
 cd backend
 python -m pytest -vv
@@ -173,9 +204,10 @@ python -m pytest -vv
 
 ## 🚀 Access Points & API Endpoints
 
-* **Frontend UI**: [http://localhost:3000](http://localhost:3000)
-* **Admin Upload Panel**: [http://localhost:3000/admin](http://localhost:3000/admin)
+* **Frontend UI (Octo RAG Console)**: [http://localhost:3000](http://localhost:3000)
+* **Admin Upload Portal**: [http://localhost:3000/admin](http://localhost:3000/admin)
 * **Interactive API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **MCP SSE Endpoint**: `GET http://localhost:8000/mcp/sse`
 * **Unified Agent Flow**: `POST http://localhost:8000/agent/run`
 * **Stateful Troubleshooting**: `POST http://localhost:8000/troubleshoot`
 * **Transcribe Endpoint**: `POST http://localhost:8000/transcribe`

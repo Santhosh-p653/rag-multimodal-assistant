@@ -1,5 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 fastapi
+starlette>=0.37.2,<0.38.0
 uvicorn[standard]
 pydantic
 python-multipart
@@ -25,3 +26,4 @@ imagehash
 websockets>=13.0
 sentencepiece
 protobuf
+mcp>=1.2.0

@@ -1,6 +1,6 @@
 # OCTO-RAG Codebase Knowledge Base & Full Project Context
 
-**Purpose:** This document serves as the exhaustive technical reference and full project context for **OCTO-RAG**. It details system metrics (34/34 passing backend unit, security, integration, and vision test suites), technology stack rationales, service components, step-by-step lifecycle flowcharts, caching layers, rate limiters, and an operational scope comparison.
+**Purpose:** This document serves as the technical reference and project context for **OCTO-RAG**. It details system metrics (40/40 passing backend unit, security, integration, vision, domain guardrail, and MCP test suites), technology stack rationales, service components, step-by-step lifecycle flowcharts, caching layers, rate limiters, and an operational scope comparison.
 
 ---
 
@@ -8,12 +8,12 @@
 
 ### Performance Benchmarks
 - **Build Status**: Operational & Fully Tested (`pytest`).
-- **Test Verification Suite**: **34 / 34 tests passing** (`pytest -vv`).
+- **Test Verification Suite**: **40 / 40 tests passing** (`pytest -vv`).
 - **Precision @ 5**: **78.0%**
 - **Recall @ 5**: **78.0%**
 - **Mean Reciprocal Rank (MRR)**: **0.9167**
 - **Hit Rate @ 5**: **100.0%**
-- **Core Engine Capabilities**: End-to-end RAG with 3-level waterfall hybrid search (dense + BM25 RRF), SigLIP 2 multimodal visual search, PyMuPDF vector drawing extraction, LangGraph stateful graph execution, multi-turn troubleshooting state machine, hybrid STT/TTS voice layer, rate limiting, and prompt injection defense.
+- **Core Engine Capabilities**: End-to-end RAG with 3-level waterfall hybrid search (dense + BM25 RRF), FastMCP server integration (stdio + SSE), SigLIP 2 multimodal visual search, PyMuPDF vector drawing extraction, LangGraph stateful graph execution, multi-turn troubleshooting state machine, hybrid STT/TTS voice layer, rate limiting, and pre-LLM domain boundary defense.
 
 ---
 
@@ -22,6 +22,7 @@
 | Layer | Technology | Architectural Role | Selection Justification |
 | :--- | :--- | :--- | :--- |
 | **Backend API** | FastAPI (Python 3.11) | Async REST API & security gateway | Native async support for IO-bound LLM/Vector calls; fast Pydantic schema validation; automatic OpenAPI documentation. |
+| **MCP Server** | FastMCP (`mcp>=1.2.0`) | Model Context Protocol diagnostic tools | Standard open protocol allowing Claude Desktop, IDEs, and local AI clients to invoke fridge diagnostic tools and query vector manuals. |
 | **Agent Engine** | LangGraph (`StateGraph`) | Stateful query orchestration | Provides explicit control over node boundaries, version control, and conditional fallbacks. |
 | **Vector DB** | Qdrant (Dual Collections) | High-speed vector indexing & search | Manages dual collections (`manuals` text & `manual_images` visual), fast payload filtering, lightweight local deployment. |
 | **Text Embeddings**| SentenceTransformers (`all-MiniLM-L6-v2`) | 384-dim dense text vectorization | Lightweight (80MB), fast CPU inference, zero API cost, high technical domain performance. |
@@ -29,7 +30,7 @@
 | **Document Parser**| Microsoft `MarkItDown` & PyMuPDF | Text parsing & vector region rendering | PyMuPDF renders vector graphics/schematics into PNGs; `MarkItDown` converts multi-format files to Markdown. |
 | **Voice STT/TTS** | `faster-whisper`, Sarvam AI `Saaras v3`, `edge-tts` | Multilingual Speech-to-Text & Speech Synthesis | `faster-whisper` enables low-latency English STT; Sarvam AI handles Indic regional accents; `edge-tts` provides high-quality Microsoft neural speech synthesis. |
 | **LLM Execution** | Groq / SambaNova (Llama 3 70B/8B) | Direct inference generation | Ultra-fast token generation speed (<200ms TTFT) essential for real-time interactive RAG and troubleshooting dialogues. |
-| **Security Layer** | `slowapi` & Regex `prompt_guard` | Rate limiting & jailbreak defense | Prevents DDoS attacks and drops prompt override attacks before reaching LLM APIs. |
+| **Security Layer** | `slowapi` & `prompt_guard` | Rate limiting & domain boundary shield | Prevents DDoS attacks, drops prompt injection override attempts, and blocks non-refrigerator queries before calling LLM APIs (**0 token cost**). |
 
 ---
 
@@ -43,7 +44,11 @@ graph TD
 
     Backend --> Main[main.py: FastAPI Entrypoint & Rate Limiters]
     Backend --> Config[config.py: Global Settings]
+    Backend --> MCPPkg[mcp/: FastMCP Server & Tools]
     Backend --> Services[services/]
+
+    MCPPkg --> MCPServer[fridge_mcp_server.py: FastMCP Instance]
+    MCPPkg --> MCPClient[mcp_client.py: Diagnostic Tool Helper]
 
     Services --> AgentFlow[agent_flow.py: LangGraph StateGraph]
     Services --> Parser[parser.py: MarkItDown Ingestion Engine]
@@ -54,56 +59,19 @@ graph TD
     Services --> VisionEmbedder[vision_embedder.py: SigLIP 2 Vision Singleton]
     Services --> VisionSearch[vision_search.py: SigLIP Image Search Service]
     Services --> VectorStore[vector_store.py: Qdrant Dual Collections Interface]
-    Services --> MetadataRes[metadata_resolver.py: Metadata Filter Waterfall]
     Services --> HybridSearch[hybrid_search.py: BM25 + RRF Fusion Algorithm]
     Services --> Retriever[retriever.py: 3-Level Waterfall Hybrid RAG]
     Services --> QueryUnderstand[query_understanding.py: Confidence Evaluator]
     Services --> ContextRecon[context_reconstruction.py: Query Rewriter]
     Services --> SessionStore[session_store.py: SQLite Multi-turn Session Store]
-    Services --> PromptGuard[prompt_guard.py: Security Regex Shield]
+    Services --> PromptGuard[prompt_guard.py: Injection & Domain Boundary Shield]
     Services --> AudioSvc[audio.py: Whisper + Sarvam + edge-tts Hybrid Audio]
     Services --> WorkflowManager[workflow_manager.py: Diagnostic State Machine]
 ```
 
 ---
 
-## 4. Lifecycles & Sequence Flowcharts
-
-### 4.1 Document & Image Ingestion Sequence
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Main as main.py
-    participant Parser as parser.py
-    participant Extractor as image_extractor.py
-    participant SigLIP as vision_embedder.py
-    participant Qdrant as vector_store.py
-
-    User->>Main: POST /upload (File Document)
-    Main->>Main: Enforce <= 25MB & MIME validation
-    Main->>Qdrant: Delete existing vectors for file
-    Main->>Parser: parse_file(filename, content)
-    Parser->>Extractor: extract_and_filter_images(pdf_path, doc_id)
-    Extractor-->>Parser: Extracted PNGs + pHash Deduplication + nearby_text
-    Parser->>Parser: MarkItDown converts text to Markdown
-    Parser->>Parser: Zero-Shot Product Identification on first 1500 chars
-    Parser->>Parser: Chunk text (500 chars, 100 overlap)
-    
-    alt Vision Indexing Enabled
-        Parser->>SigLIP: embed_images(image_paths)
-        SigLIP-->>Parser: 768-dim SigLIP Vectors
-        Parser->>Qdrant: ingest_images(manual_images collection)
-    end
-
-    Parser->>Qdrant: ingest_chunks(manuals collection)
-    Qdrant-->>Main: Ingestion Complete
-    Main-->>User: HTTP 200 (Success Metadata)
-```
-
----
-
-## 5. Multi-Tier Caching Matrix
+## 4. Multi-Tier Caching Matrix
 
 | Cache Layer | Location | Implementation | Primary Purpose |
 | :--- | :--- | :--- | :--- |
@@ -115,7 +83,7 @@ sequenceDiagram
 
 ---
 
-## 6. Rate Limiting Matrix
+## 5. Rate Limiting Matrix
 
 All API endpoints are protected via `slowapi` (`Limiter(key_func=get_remote_address)`):
 
@@ -128,18 +96,5 @@ All API endpoints are protected via `slowapi` (`Limiter(key_func=get_remote_addr
 | `/troubleshoot`| `POST` | `20 / min` | Controls multi-turn state machine execution turns |
 | `/speak` | `POST` | `20 / min` | Rate limits `edge-tts` text-to-speech generation |
 | `/chat/stream` | `POST` | `30 / min` | Limits Server-Sent Events (SSE) streaming connections |
+| `/mcp/sse` | `GET` | Starlette/FastAPI | Controls MCP Server-Sent Events connections |
 | `/document-images/...` | `GET` | `60 / min` | Prevents document image scraping abuse |
-
----
-
-## 7. Scope Comparison: Immediate Local Use vs. High-Concurrency Scale
-
-This matrix clarifies the distinction between immediate operational deployment vs enterprise high-concurrency scaling:
-
-| Feature / Subsystem | Immediate Local & Team Deployment | High-Concurrency Enterprise Scale Fix |
-| :--- | :--- | :--- |
-| **Query & Retrieval Cache** | Local LRU dictionary cache gives **sub-5ms** repeated search performance. | Replace in-memory dict with **Redis** cluster for multi-worker container pods. |
-| **Session Registry** | SQLite / In-memory store preserves multi-turn context smoothly across turns. | Migrate to **Redis / PostgreSQL** for load-balanced worker pools. |
-| **Version Hash Control** | SQLite `registry.db` tracks document hashes reliably. | Enable SQLite WAL mode or migrate to **PostgreSQL**. |
-| **Sparse BM25 Search** | In-memory BM25 quickly scores retrieved candidate chunks. | Migrate to native **Qdrant sparse vectors** or Tantivy for 100k+ chunk indexes. |
-| **Multimodal Vision** | **SigLIP 2 + PyMuPDF** extracts page regions and returns visual image context seamlessly. | Distribute SigLIP inference across dedicated GPU worker nodes. |
