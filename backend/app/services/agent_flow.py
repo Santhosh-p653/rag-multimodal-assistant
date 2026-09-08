@@ -186,7 +186,7 @@ def embed_and_store(state: AgentState) -> Dict[str, Any]:
     filename = state["source_input"]
     md_content = state["source_content"].decode("utf-8")
 
-    sample_text = md_content[:1500]
+    sample_text = md_content[:4000]
     metadata = identify_product_service(f"File: {filename}\n{sample_text}")
 
     chunks = chunk_markdown(md_content, source_file=filename, metadata=metadata)
@@ -245,9 +245,8 @@ def identify_product(state: AgentState) -> Dict[str, Any]:
             "clarification_options": matches
         }
 
-    if len(existing_products) == 1:
-        print(f"[AgentFlow] Defaulting to single existing product: {existing_products[0]}")
-        return {"product_id": existing_products[0], "clarification_needed": False}
+    if state.get("source_input"):
+        return {"product_id": None, "clarification_needed": False}
 
     return {"product_id": None, "clarification_needed": False}
 
@@ -406,6 +405,7 @@ Respond with either 'troubleshoot' (if reporting a problem, error, or failure) o
 def retrieve(state: AgentState) -> Dict[str, Any]:
     query = state["query"]
     product_id = state["product_id"]
+    source_input = state.get("source_input")
     
     if state.get("retrieval_retries", 0) > 0:
         understood = state.get("understood_data", {})
@@ -415,7 +415,7 @@ def retrieve(state: AgentState) -> Dict[str, Any]:
     if product_id:
         query_entities = {"product": product_id, "model": product_id}
 
-    chunks, retrieval_confidence = retrieve_context_service(query, query_entities=query_entities)
+    chunks, retrieval_confidence = retrieve_context_service(query, source_file=source_input, query_entities=query_entities)
 
     sources = []
     for c in chunks:
@@ -679,11 +679,7 @@ def pending_router(state: AgentState) -> str:
     return "analyze_input_node"
     
 def input_confidence_router(state: AgentState) -> str:
-    conf = state.get("input_confidence")
-    ambiguities = state.get("understood_data", {}).get("ambiguities", [])
-    if conf == "HIGH" or (conf == "MEDIUM" and not ambiguities):
-        return "identify_product"
-    return "clarify_or_fallback_node"
+    return "identify_product"
     
 def retrieval_confidence_router(state: AgentState) -> str:
     conf = state.get("retrieval_confidence", "LOW")

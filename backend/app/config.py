@@ -58,10 +58,10 @@ class Settings:
         # Auto-detect which provider to use (Groq preferred)
         if self.GROQ_API_KEY:
             self.LLM_PROVIDER = "groq"
-            self.LLM_MODEL = "llama-3.1-8b-instant"
+            self.LLM_MODEL = os.getenv("LLM_MODEL", "groq/compound-mini")
         elif self.SAMBANOVA_API_KEY:
             self.LLM_PROVIDER = "sambanova"
-            self.LLM_MODEL = "Meta-Llama-3.1-8B-Instruct"
+            self.LLM_MODEL = os.getenv("LLM_MODEL", "Meta-Llama-3.1-8B-Instruct")
 
 
 settings = Settings()

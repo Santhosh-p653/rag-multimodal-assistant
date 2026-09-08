@@ -265,57 +265,12 @@ async def chat(payload: ChatRequest, request: Request):
 
     from app.services.query_understanding import understand_query
     understood = understand_query(user_message)
-    input_confidence = understood.get("input_confidence", "LOW")
 
-    # Step 1 & 2: Route on input_confidence
-    if input_confidence == "LOW":
-        product_hint = understood.get("product_hint")
-        issue_hint = understood.get("issue_hint")
-        ambiguities = understood.get("ambiguities", [])
-        
-        if product_hint and issue_hint:
-            clarification_q = f"I see this is about the {product_hint} and a {issue_hint} issue — can you tell me a bit more about what's happening?"
-        elif product_hint and not issue_hint:
-            clarification_q = f"I see this is about the {product_hint} — what's happening with it?"
-        elif issue_hint and not product_hint:
-            clarification_q = f"Which product is having this {issue_hint} issue?"
-        elif ambiguities and isinstance(ambiguities, list) and len(ambiguities) > 0:
-            clarification_q = build_clarification_from_ambiguity(ambiguities[0])
-        else:
-            clarification_q = "Could you tell me more about what you need help with?"
-
-        session["last_valid_user_query"] = user_message
-        session["pending_clarification"] = True
-        session["clarification_question"] = clarification_q
-        session_store.save(session_id, session)
-
-        return ChatResponse(
-            answer=clarification_q,
-            sources=[],
-            needs_clarification=True,
-            clarification_question=clarification_q
-        )
-    elif input_confidence == "MEDIUM":
-        ambiguities = understood.get("ambiguities", [])
-        if ambiguities and isinstance(ambiguities, list) and len(ambiguities) > 0:
-            clarification_q = build_clarification_from_ambiguity(ambiguities[0])
-            session["last_valid_user_query"] = user_message
-            session["pending_clarification"] = True
-            session["clarification_question"] = clarification_q
-            session_store.save(session_id, session)
-            return ChatResponse(
-                answer=clarification_q,
-                sources=[],
-                needs_clarification=True,
-                clarification_question=clarification_q
-            )
-        # Else proceed to retrieval
-        
-    # Step 3: Retrieval
+    # Step 3: Direct Retrieval - Always search manuals first
     chunks, retrieval_confidence = retrieve_context(
-        understood["normalized_query"],
+        understood.get("normalized_query", user_message),
         source_file=payload.source_file,
-        query_entities=understood["entities"]
+        query_entities=understood.get("entities", {})
     )
 
     # Step 4: Route on retrieval_confidence

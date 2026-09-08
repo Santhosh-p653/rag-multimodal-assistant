@@ -102,20 +102,15 @@ class VectorStoreService:
             return []
 
         if source_file:
-            sf_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="source_file",
-                        match=MatchValue(value=source_file),
-                    )
-                ]
+            sf_condition = FieldCondition(
+                key="source_file",
+                match=MatchValue(value=source_file),
             )
             if query_filter:
-                if not hasattr(query_filter, "must") or query_filter.must is None:
-                    query_filter.must = []
-                query_filter.must.extend(sf_filter.must)
+                existing_must = list(query_filter.must) if hasattr(query_filter, "must") and query_filter.must else []
+                query_filter = Filter(must=existing_must + [sf_condition])
             else:
-                query_filter = sf_filter
+                query_filter = Filter(must=[sf_condition])
 
         response = self.client.query_points(
             collection_name=QDRANT_COLLECTION,
@@ -134,20 +129,15 @@ class VectorStoreService:
             return []
 
         if source_file:
-            sf_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="source_file",
-                        match=MatchValue(value=source_file),
-                    )
-                ]
+            sf_condition = FieldCondition(
+                key="source_file",
+                match=MatchValue(value=source_file),
             )
             if scroll_filter:
-                if not hasattr(scroll_filter, "must") or scroll_filter.must is None:
-                    scroll_filter.must = []
-                scroll_filter.must.extend(sf_filter.must)
+                existing_must = list(scroll_filter.must) if hasattr(scroll_filter, "must") and scroll_filter.must else []
+                scroll_filter = Filter(must=existing_must + [sf_condition])
             else:
-                scroll_filter = sf_filter
+                scroll_filter = Filter(must=[sf_condition])
 
         response = self.client.scroll(
             collection_name=QDRANT_COLLECTION,
@@ -275,20 +265,15 @@ class VectorStoreService:
             return []
 
         if source_file:
-            sf_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="source_file",
-                        match=MatchValue(value=source_file),
-                    )
-                ]
+            sf_condition = FieldCondition(
+                key="source_file",
+                match=MatchValue(value=source_file),
             )
             if query_filter:
-                if not hasattr(query_filter, "must") or query_filter.must is None:
-                    query_filter.must = []
-                query_filter.must.extend(sf_filter.must)
+                existing_must = list(query_filter.must) if hasattr(query_filter, "must") and query_filter.must else []
+                query_filter = Filter(must=existing_must + [sf_condition])
             else:
-                query_filter = sf_filter
+                query_filter = Filter(must=[sf_condition])
 
         try:
             return self.client.search(

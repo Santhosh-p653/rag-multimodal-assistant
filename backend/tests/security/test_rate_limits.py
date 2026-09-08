@@ -17,13 +17,16 @@ client = TestClient(fastapi_app)
 
 def test_rate_limits_chat():
     with patch("app.main.retrieve_context") as mock_ret, patch("app.main.call_llm") as mock_llm:
-        mock_ret.return_value = [
-            {
-                "chunk_id": "c1",
-                "content": "Manual instructions.",
-                "source": "manual.pdf",
-            }
-        ]
+        mock_ret.return_value = (
+            [
+                {
+                    "chunk_id": "c1",
+                    "content": "Manual instructions.",
+                    "source": "manual.pdf",
+                }
+            ],
+            "HIGH"
+        )
 
         mock_llm.return_value = "Mocked LLM answer."
 

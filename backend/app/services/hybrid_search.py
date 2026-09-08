@@ -8,6 +8,13 @@ from collections import Counter
 from typing import List, Dict, Any
 
 
+STOP_WORDS = {
+    "a", "an", "the", "me", "show", "is", "are", "was", "were", "be", "been", "being",
+    "what", "how", "where", "when", "why", "who", "which", "to", "in", "of", "for", "on",
+    "at", "by", "from", "up", "about", "into", "over", "after", "and", "or", "with", "do",
+    "does", "did", "you", "your", "need", "can", "could", "would", "should", "please", "give", "tell"
+}
+
 def tokenize(text: str) -> List[str]:
     """Tokenize text into lowercase words."""
     return re.findall(r"\w+", text.lower())
@@ -43,7 +50,8 @@ class BM25:
 
     def get_scores(self, query: str) -> List[float]:
         """Compute BM25 scores for all documents in the corpus given a query."""
-        query_tokens = tokenize(query)
+        raw_tokens = tokenize(query)
+        query_tokens = [t for t in raw_tokens if t not in STOP_WORDS] or raw_tokens
         scores = []
         for i in range(self.corpus_size):
             score = 0.0

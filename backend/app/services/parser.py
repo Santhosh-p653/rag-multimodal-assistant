@@ -85,7 +85,7 @@ class ParserService:
 
         # Extract metadata from filename and sample content
         from app.services.product_identifier import identify_product
-        sample_text = md_content[:1500]
+        sample_text = md_content[:4000]
         metadata = identify_product(f"File: {filename}\n{sample_text}")
 
         # 4. Chunk the markdown
