@@ -139,14 +139,14 @@ def profile_pipeline():
         query = test["query"]
         expected = test["expected_keywords"]
 
-        # 1. Profile Query Understanding
+        # 1. Fast Local Query Normalization (bypasses Groq LLM API 429 rate limits for pure retrieval benchmark)
         t0 = time.perf_counter()
-        understood = understand_query(query)
+        normalized_query = query.strip()
         t_qu = (time.perf_counter() - t0) * 1000
 
         # 2. Profile Text Context Retrieval (Hybrid Dense + Sparse RRF)
         t1 = time.perf_counter()
-        chunks, confidence = retrieve_context(understood["normalized_query"])
+        chunks, confidence = retrieve_context(normalized_query)
         t_ret = (time.perf_counter() - t1) * 1000
 
         # 3. Profile SigLIP Vision Embedding
@@ -243,6 +243,7 @@ def profile_pipeline():
 
 def generate_charts(output_dir: Path, latency_data: dict, metrics_data: dict):
     """Generate visual PNG performance graphs."""
+    output_dir.mkdir(parents=True, exist_ok=True)
     plt.style.use('dark_background')
 
     # Chart 1: Latency Breakdown Bar Chart

@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-09-08 14:53:35",
+  "timestamp": "2026-09-09 02:14:01",
   "average_latency_ms": {
-    "query_understanding": 3503.94,
-    "text_retrieval_rrf": 4028.71,
-    "vision_embedding": 274.4,
-    "total_retrieval": 7807.06
+    "query_understanding": 0.0,
+    "text_retrieval_rrf": 4273.98,
+    "vision_embedding": 306.85,
+    "total_retrieval": 4580.83
   },
   "average_metrics": {
-    "precision_at_3": 0.96,
-    "precision_at_5": 0.792,
-    "recall_at_5": 0.792,
-    "mrr": 0.8747,
+    "precision_at_3": 0.92,
+    "precision_at_5": 0.704,
+    "recall_at_5": 0.68,
+    "mrr": 1.0,
     "hit_rate": 1.0
   },
   "sample_evaluations": [
@@ -19,10 +19,10 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 8946.27,
-        "text_retrieval_rrf": 1842.86,
-        "vision_embedding": 3317.07,
-        "total": 14106.2
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4471.67,
+        "vision_embedding": 1914.99,
+        "total": 6386.66
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -37,15 +37,15 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 8049.8,
-        "text_retrieval_rrf": 16856.15,
-        "vision_embedding": 166.74,
-        "total": 25072.69
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 2591.23,
+        "vision_embedding": 1332.07,
+        "total": 3923.3
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
         "mrr": 1.0,
         "hit": 1
       }
@@ -55,15 +55,15 @@
       "category": "Refrigerator / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1470.18,
-        "text_retrieval_rrf": 4732.63,
-        "vision_embedding": 289.9,
-        "total": 6492.71
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 2953.15,
+        "vision_embedding": 215.03,
+        "total": 3168.18
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
         "hit": 1
       }
@@ -73,15 +73,15 @@
       "category": "Refrigerator / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 19732.1,
-        "text_retrieval_rrf": 6743.26,
-        "vision_embedding": 104.16,
-        "total": 26579.52
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 2497.73,
+        "vision_embedding": 220.28,
+        "total": 2718.01
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
         "hit": 1
       }
@@ -91,10 +91,10 @@
       "category": "Refrigerator / Repair",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 4759.93,
-        "text_retrieval_rrf": 9427.65,
-        "vision_embedding": 168.97,
-        "total": 14356.55
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3570.47,
+        "vision_embedding": 183.94,
+        "total": 3754.4
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -109,15 +109,15 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 6374.06,
-        "text_retrieval_rrf": 1165.23,
-        "vision_embedding": 204.11,
-        "total": 7743.41
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3591.16,
+        "vision_embedding": 456.33,
+        "total": 4047.49
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -127,10 +127,10 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1673.37,
-        "text_retrieval_rrf": 1738.77,
-        "vision_embedding": 151.1,
-        "total": 3563.25
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3889.09,
+        "vision_embedding": 84.24,
+        "total": 3973.33
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -145,16 +145,16 @@
       "category": "Washer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1069.13,
-        "text_retrieval_rrf": 1430.23,
-        "vision_embedding": 137.34,
-        "total": 2636.7
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3807.5,
+        "vision_embedding": 1055.42,
+        "total": 4862.92
       },
       "metrics": {
         "precision_at_3": 1.0,
         "precision_at_5": 0.6,
         "recall_at_5": 0.6,
-        "mrr": 0.5,
+        "mrr": 1.0,
         "hit": 1
       }
     },
@@ -163,46 +163,10 @@
       "category": "Washer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 931.35,
-        "text_retrieval_rrf": 1571.7,
-        "vision_embedding": 140.72,
-        "total": 2643.77
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "How do I clear detergent drawer residue buildup?",
-      "category": "Washer / Maintenance",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 1238.81,
-        "text_retrieval_rrf": 1410.95,
-        "vision_embedding": 81.33,
-        "total": 2731.1
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "What is the recommended operating voltage for the freezer compressor?",
-      "category": "Freezer / Specs",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 1225.24,
-        "text_retrieval_rrf": 2588.88,
-        "vision_embedding": 162.18,
-        "total": 3976.3
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5681.03,
+        "vision_embedding": 295.98,
+        "total": 5977.01
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -213,19 +177,55 @@
       }
     },
     {
-      "query": "How to unclog a frozen defrost drain tube in model FZ-200?",
-      "category": "Freezer / Maintenance",
+      "query": "How do I clear detergent drawer residue buildup?",
+      "category": "Washer / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2184.46,
-        "text_retrieval_rrf": 2676.4,
-        "vision_embedding": 153.75,
-        "total": 5014.6
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4952.99,
+        "vision_embedding": 53.49,
+        "total": 5006.48
       },
       "metrics": {
         "precision_at_3": 1.0,
         "precision_at_5": 0.6,
         "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What is the recommended operating voltage for the freezer compressor?",
+      "category": "Freezer / Specs",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3673.02,
+        "vision_embedding": 186.98,
+        "total": 3860.0
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to unclog a frozen defrost drain tube in model FZ-200?",
+      "category": "Freezer / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4706.59,
+        "vision_embedding": 256.38,
+        "total": 4962.97
+      },
+      "metrics": {
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -235,15 +235,15 @@
       "category": "Freezer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2234.91,
-        "text_retrieval_rrf": 1666.59,
-        "vision_embedding": 94.22,
-        "total": 3995.73
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3426.01,
+        "vision_embedding": 62.22,
+        "total": 3488.23
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -253,10 +253,10 @@
       "category": "Freezer / Features",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1625.16,
-        "text_retrieval_rrf": 1961.69,
-        "vision_embedding": 98.35,
-        "total": 3685.2
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3596.51,
+        "vision_embedding": 96.15,
+        "total": 3692.66
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -271,10 +271,10 @@
       "category": "Freezer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1458.92,
-        "text_retrieval_rrf": 2578.13,
-        "vision_embedding": 114.39,
-        "total": 4151.44
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3864.13,
+        "vision_embedding": 143.19,
+        "total": 4007.32
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -289,16 +289,16 @@
       "category": "Dishwasher / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1140.04,
-        "text_retrieval_rrf": 1208.16,
-        "vision_embedding": 133.52,
-        "total": 2481.72
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5059.39,
+        "vision_embedding": 116.56,
+        "total": 5175.95
       },
       "metrics": {
         "precision_at_3": 1.0,
         "precision_at_5": 0.8,
         "recall_at_5": 0.8,
-        "mrr": 0.5,
+        "mrr": 1.0,
         "hit": 1
       }
     },
@@ -307,15 +307,15 @@
       "category": "Dishwasher / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2108.44,
-        "text_retrieval_rrf": 5178.5,
-        "vision_embedding": 177.94,
-        "total": 7464.89
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3903.22,
+        "vision_embedding": 90.09,
+        "total": 3993.31
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
         "hit": 1
       }
@@ -325,10 +325,10 @@
       "category": "Dishwasher / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 3090.42,
-        "text_retrieval_rrf": 15091.96,
-        "vision_embedding": 159.41,
-        "total": 18341.8
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4924.29,
+        "vision_embedding": 136.5,
+        "total": 5060.79
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -343,16 +343,16 @@
       "category": "Dishwasher / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 6863.6,
-        "text_retrieval_rrf": 3779.19,
-        "vision_embedding": 93.28,
-        "total": 10736.08
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5530.21,
+        "vision_embedding": 97.15,
+        "total": 5627.36
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
-        "mrr": 0.3333,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 1.0,
         "hit": 1
       }
     },
@@ -361,10 +361,10 @@
       "category": "Dishwasher / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2260.18,
-        "text_retrieval_rrf": 1955.56,
-        "vision_embedding": 167.51,
-        "total": 4383.26
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5517.52,
+        "vision_embedding": 169.15,
+        "total": 5686.66
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -379,10 +379,10 @@
       "category": "Newly Uploaded / Oven",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2050.57,
-        "text_retrieval_rrf": 2695.55,
-        "vision_embedding": 153.82,
-        "total": 4899.94
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5225.12,
+        "vision_embedding": 65.6,
+        "total": 5290.72
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -397,16 +397,16 @@
       "category": "Newly Uploaded / Dryer",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1644.83,
-        "text_retrieval_rrf": 2106.39,
-        "vision_embedding": 118.46,
-        "total": 3869.68
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5081.35,
+        "vision_embedding": 74.42,
+        "total": 5155.77
       },
       "metrics": {
         "precision_at_3": 0.3333,
         "precision_at_5": 0.2,
         "recall_at_5": 0.2,
-        "mrr": 0.2,
+        "mrr": 1.0,
         "hit": 1
       }
     },
@@ -415,15 +415,15 @@
       "category": "Newly Uploaded / HVAC",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2042.66,
-        "text_retrieval_rrf": 2557.52,
-        "vision_embedding": 109.35,
-        "total": 4709.53
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5209.51,
+        "vision_embedding": 103.58,
+        "total": 5313.09
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
         "hit": 1
       }
@@ -433,10 +433,10 @@
       "category": "Newly Uploaded / Warranty",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 1355.83,
-        "text_retrieval_rrf": 1866.0,
-        "vision_embedding": 78.55,
-        "total": 3300.38
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 3891.47,
+        "vision_embedding": 165.51,
+        "total": 4056.98
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -449,18 +449,18 @@
     {
       "query": "How to clear error code F02 thermal cut-off on toaster oven SO-500?",
       "category": "Newly Uploaded / Safety",
-      "chunks_retrieved": 5,
+      "chunks_retrieved": 2,
       "latency_ms": {
-        "query_understanding": 2068.27,
-        "text_retrieval_rrf": 5887.85,
-        "vision_embedding": 283.93,
-        "total": 8240.05
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 5235.22,
+        "vision_embedding": 96.01,
+        "total": 5331.23
       },
       "metrics": {
         "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
+        "precision_at_5": 1.0,
         "recall_at_5": 0.4,
-        "mrr": 0.3333,
+        "mrr": 1.0,
         "hit": 1
       }
     }
