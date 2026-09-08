@@ -7,19 +7,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c084fc',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95',
-          950: '#2e1065',
+        octo: {
+          orange: '#C65D3A',
+          'orange-hover': '#B2502F',
+          'orange-light': '#FBF1ED',
+          bg: '#F7F4EE',
+          surface: '#FFFFFF',
+          'surface-warm': '#EFE9DF',
+          charcoal: '#252525',
+          muted: '#6F6A63',
+          border: '#DED8CE',
         },
+      },
+      borderRadius: {
+        'btn': '12px',
+        'card': '16px',
       },
     },
   },

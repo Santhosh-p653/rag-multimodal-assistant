@@ -4,92 +4,68 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 min-h-screen antialiased;
+    @apply bg-[#F7F4EE] text-[#252525] min-h-screen antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 
-/* Premium glassmorphic interface panels */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Octo RAG Warm Neutral Components */
+.octo-card {
+  background-color: #FFFFFF;
+  border: 1px solid #DED8CE;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(37, 37, 37, 0.04);
 }
 
-.glass-panel-heavy {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.octo-card-subtle {
+  background-color: #EFE9DF;
+  border: 1px solid #DED8CE;
+  border-radius: 14px;
 }
 
-.glass-card {
-  background: rgba(30, 41, 59, 0.3);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.octo-input {
+  background-color: #FFFFFF;
+  border: 1px solid #DED8CE;
+  color: #252525;
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
 }
 
-.glass-card:hover {
-  background: rgba(30, 41, 59, 0.55);
-  border-color: rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
-  transform: translateY(-2px);
-}
-
-.glass-input {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-input:focus {
+.octo-input:focus {
   outline: none;
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
-  background: rgba(15, 23, 42, 0.75);
+  border-color: #C65D3A;
+  box-shadow: 0 0 0 3px rgba(198, 93, 58, 0.12);
 }
 
-/* Customized scrollbar design */
+/* Customized scrollbar design for warm theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.2);
+  background: #F7F4EE;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.2);
+  background: #DED8CE;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.45);
+  background: #6F6A63;
 }
 
-/* Loading dots animation */
-@keyframes pulse-dot {
+/* Subtle loading pulse */
+@keyframes pulse-subtle {
   0%, 100% {
-    transform: scale(0.6);
-    opacity: 0.4;
+    opacity: 0.5;
   }
   50% {
-    transform: scale(1.1);
     opacity: 1;
   }
 }
 
-.loading-dot {
-  animation: pulse-dot 1.4s infinite ease-in-out;
-}
-.loading-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.loading-dot:nth-child(3) {
-  animation-delay: 0.4s;
+.animate-pulse-subtle {
+  animation: pulse-subtle 1.5s infinite ease-in-out;
 }

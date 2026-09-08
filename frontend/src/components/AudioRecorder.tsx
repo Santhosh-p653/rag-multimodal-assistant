@@ -4,11 +4,13 @@ import { Mic, Square, AlertCircle } from "lucide-react";
 interface AudioRecorderProps {
   onRecordingComplete: (blob: Blob) => void;
   disabled?: boolean;
+  variant?: "hero" | "compact";
 }
 
 export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   onRecordingComplete,
   disabled = false,
+  variant = "compact",
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
@@ -66,35 +68,72 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     };
   }, []);
 
+  if (variant === "hero") {
+    return (
+      <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+        {permissionError && (
+          <span className="text-xs text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+            Microphone access was blocked by your browser.
+          </span>
+        )}
+
+        <button
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={disabled}
+          type="button"
+          className={`w-full h-14 px-6 rounded-btn text-base font-semibold transition-all duration-200 flex items-center justify-center gap-3 shadow-sm ${
+            isRecording
+              ? "bg-red-600 hover:bg-red-700 text-white animate-pulse"
+              : "bg-octo-orange hover:bg-octo-orange-hover text-white active:scale-[0.98]"
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          title={isRecording ? "Stop recording speech query" : "Tap to speak your question"}
+        >
+          {isRecording ? (
+            <>
+              <Square className="h-5 w-5 fill-white" />
+              <span>🎤 Listening... Tap to stop</span>
+            </>
+          ) : (
+            <>
+              <Mic className="h-5 w-5" />
+              <span>Tap to speak</span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center gap-2">
       {permissionError && (
-        <span className="text-[10px] text-rose-400 flex items-center gap-1 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1.5 rounded-xl animate-fadeIn">
-          <AlertCircle className="h-3.5 w-3.5" /> Mic blocked
+        <span className="text-xs text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg flex items-center gap-1">
+          <AlertCircle className="h-3.5 w-3.5 text-red-600" /> Mic blocked
         </span>
       )}
 
       <button
         onClick={isRecording ? stopRecording : startRecording}
         disabled={disabled}
-        className={`p-3 rounded-2xl transition-all duration-300 relative ${
+        className={`h-12 px-4 rounded-btn font-medium text-sm transition-all duration-200 flex items-center gap-2 border ${
           isRecording
-            ? "text-white bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-500/30 scale-105"
-            : "text-slate-400 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            ? "bg-red-600 text-white border-red-700 animate-pulse"
+            : "bg-octo-surface-warm text-octo-charcoal border-octo-border hover:bg-[#E4DCD0] disabled:opacity-50 disabled:cursor-not-allowed"
         }`}
         type="button"
-        title={isRecording ? "Stop recording" : "Record audio query"}
+        title={isRecording ? "Stop recording" : "Speak query"}
       >
         {isRecording ? (
           <>
-            <Square className="h-4.5 w-4.5 animate-pulse" />
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-            </span>
+            <Square className="h-4 w-4 fill-white" />
+            <span className="font-semibold text-xs">Listening...</span>
           </>
         ) : (
-          <Mic className="h-4.5 w-4.5" />
+          <>
+            <Mic className="h-4.5 w-4.5 text-octo-orange" />
+            <span className="hidden sm:inline text-xs font-medium">Speak</span>
+          </>
         )}
       </button>
     </div>

@@ -1,15 +1,15 @@
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import Link from "next/link";
 import {
-  MessageSquare,
   FileText,
   UploadCloud,
   File,
-  CheckCircle,
+  CheckCircle2,
   AlertTriangle,
   ArrowLeft,
   Loader2,
-  Sparkles
+  BookOpen,
+  Plus
 } from "lucide-react";
 import { uploadDocument, UploadResponse } from "../lib/api";
 
@@ -30,7 +30,6 @@ export default function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  // Keep track of files processed in current session
   const [history, setHistory] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,12 +78,10 @@ export default function Admin() {
         setProgress(pct);
       });
 
-      const chunks = (result as any).chunks_ingested ?? 0;
       setSuccess(
-        `"${result.filename}" processed → "${result.markdown_file}" · ${chunks} chunks embedded into vector store.`
+        `✓ "${result.filename}" processed and added to assistant manuals. Ready for search!`
       );
 
-      // Add to session history
       const newItem: UploadedItem = {
         id: Math.random().toString(36).substring(7),
         filename: result.filename,
@@ -98,7 +95,6 @@ export default function Admin() {
       const errorMessage = err.message || "Failed to process the document.";
       setError(errorMessage);
 
-      // Add failed item to session history
       const newItem: UploadedItem = {
         id: Math.random().toString(36).substring(7),
         filename: selectedFile.name,
@@ -123,232 +119,212 @@ export default function Admin() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 glass-panel border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
-        <div className="p-6">
-          {/* Logo Header */}
-          <div className="flex items-center space-x-2.5 mb-8">
-            <div className="p-2 bg-violet-600 rounded-xl shadow-lg shadow-violet-500/30">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold tracking-wider bg-gradient-to-r from-violet-400 via-purple-300 to-indigo-200 bg-clip-text text-transparent">
-                OCTO-RAG
-              </h1>
-              <p className="text-[10px] text-violet-400 font-medium tracking-wide">Document Ingestion Portal</p>
-            </div>
+    <div className="min-h-screen bg-octo-bg text-octo-charcoal flex flex-col">
+      {/* ── Top Navigation ────────────────────────────────────────────────────── */}
+      <header className="bg-white border-b border-octo-border sticky top-0 z-30 shadow-sm">
+        <div className="max-w-[1100px] mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-xl font-bold tracking-tight text-octo-charcoal">
+                OCTO <span className="text-octo-orange">RAG</span>
+              </span>
+            </Link>
+            <span className="text-xs text-octo-muted font-semibold bg-octo-surface-warm px-2.5 py-1 rounded-full border border-octo-border">
+              Manual Management
+            </span>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="space-y-1.5">
-            <Link
-              href="/"
-              className="flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent hover:border-slate-800/50 font-medium text-sm transition-all"
-            >
-              <MessageSquare className="h-4.5 w-4.5" />
-              <span>Chat Assistant</span>
-            </Link>
-            <Link
-              href="/admin"
-              className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-violet-600/10 text-violet-400 border border-violet-500/20 font-medium text-sm transition-all"
-            >
-              <FileText className="h-4.5 w-4.5" />
-              <span>Document Upload</span>
-            </Link>
-          </nav>
-        </div>
-
-        <div className="p-6 border-t border-slate-900">
           <Link
             href="/"
-            className="flex items-center justify-center space-x-2 w-full py-2.5 border border-slate-850 rounded-xl text-xs bg-slate-900/30 text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-all font-medium"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-btn bg-white border border-octo-border text-xs font-semibold text-octo-charcoal hover:bg-octo-surface-warm transition-colors shadow-sm"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Chat</span>
+            <ArrowLeft className="h-4 w-4 text-octo-orange" />
+            <span>Back to Assistant</span>
           </Link>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Panel */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="h-16 border-b border-slate-900 flex items-center justify-between px-6 md:px-8 bg-slate-950/80 backdrop-blur-md shrink-0">
-          <h2 className="text-sm font-semibold tracking-wide text-slate-100 flex items-center">
-            Document Ingestion Dashboard
-          </h2>
-        </header>
+      {/* ── Main Content Container ────────────────────────────────────────────── */}
+      <main className="flex-1 max-w-[900px] mx-auto w-full p-4 md:p-8 space-y-8">
+        {/* Header Title */}
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold text-octo-charcoal tracking-tight">Manuals & Documents</h1>
+          <p className="text-sm text-octo-muted">
+            Upload equipment manuals, PDF guides, and troubleshooting specs so Octo RAG can answer technical questions.
+          </p>
+        </div>
 
-        <div className="max-w-4xl mx-auto w-full p-6 md:p-8 space-y-6">
-          {/* Main content grid */}
-          <div className="grid grid-cols-1 gap-6">
-            
-            {/* Upload Box Card */}
-            <div className="glass-card rounded-3xl p-6 md:p-8 space-y-6">
-              <div>
-                <h3 className="text-md font-semibold text-slate-100">Ingest New Manuals</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Upload raw manuals to convert them to markdown using Microsoft MarkItDown.
-                  Supported formats: PDF, DOCX, PPT/PPTX, XLS/XLSX, TXT.
-                </p>
-              </div>
+        {/* ── Upload Area Card ────────────────────────────────────────────────── */}
+        <div className="octo-card p-6 md:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-octo-border pb-4">
+            <div className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-octo-orange" />
+              <h2 className="text-lg font-semibold text-octo-charcoal">Upload Manual</h2>
+            </div>
+            <span className="text-xs text-octo-muted">Max 25MB · PDF, DOCX, TXT</span>
+          </div>
 
-              {/* Drag and Drop Zone */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileSelect}
-                className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${
-                  isDragging
-                    ? "border-violet-500 bg-violet-600/5 shadow-inner"
-                    : "border-slate-800 hover:border-slate-700 bg-slate-900/25"
-                }`}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".pdf,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
-                  className="hidden"
-                />
-                <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm text-slate-400 mb-4">
-                  <UploadCloud className="h-6 w-6 text-violet-400" />
+          {/* Drag & Drop Box */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={triggerFileSelect}
+            className={`border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
+              isDragging
+                ? "border-octo-orange bg-octo-orange-light shadow-inner"
+                : "border-octo-border hover:border-octo-orange bg-octo-surface-warm/40 hover:bg-octo-surface-warm"
+            }`}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".pdf,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+              className="hidden"
+            />
+            <div className="p-4 bg-white rounded-full border border-octo-border shadow-sm mb-3">
+              <UploadCloud className="h-7 w-7 text-octo-orange" />
+            </div>
+            <p className="text-base font-semibold text-octo-charcoal text-center">
+              Drag and drop your manual here, or <span className="text-octo-orange hover:underline">browse files</span>
+            </p>
+            <p className="text-xs text-octo-muted mt-1.5">Supported: PDF, Word (DOCX), Text files</p>
+          </div>
+
+          {/* Selected File Card */}
+          {selectedFile && (
+            <div className="octo-card-subtle p-4 flex items-center justify-between gap-4 animate-fadeIn">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 bg-white rounded-btn border border-octo-border text-octo-orange shrink-0">
+                  <File className="h-5 w-5" />
                 </div>
-                <p className="text-sm font-medium text-slate-200 text-center">
-                  Drag and drop your document here, or <span className="text-violet-400 hover:text-violet-300 underline">browse</span>
-                </p>
-                <p className="text-[10px] text-slate-500 mt-1.5">Max size 25MB. PDF, DOCX, PPT/PPTX, XLS/XLSX, TXT</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-octo-charcoal truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-octo-muted mt-0.5">{formatBytes(selectedFile.size)}</p>
+                </div>
               </div>
 
-              {/* Selected File Details */}
-              {selectedFile && (
-                <div className="bg-slate-900/50 border border-slate-850 rounded-2xl p-4 flex items-center justify-between animate-fadeIn">
-                  <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-750 text-violet-400">
-                      <File className="h-5 w-5" />
+              <button
+                onClick={handleUpload}
+                disabled={isUploading}
+                className="h-11 px-5 rounded-btn text-xs font-semibold text-white bg-octo-orange hover:bg-octo-orange-hover shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center gap-2"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>Upload Manual</span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Stage-by-Stage Progress Bar */}
+          {isUploading && (
+            <div className="space-y-3 p-4 bg-white rounded-card border border-octo-border animate-fadeIn">
+              <div className="flex justify-between text-xs font-semibold text-octo-charcoal">
+                <span>
+                  {progress < 30
+                    ? "✓ Uploading document..."
+                    : progress < 60
+                    ? "✓ Extracting text & diagrams..."
+                    : progress < 90
+                    ? "✓ Updating search index..."
+                    : "✓ Almost ready!"}
+                </span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-2 w-full bg-octo-surface-warm rounded-full overflow-hidden border border-octo-border">
+                <div
+                  className="h-full bg-octo-orange rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Status Alerts */}
+          {success && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-card text-xs flex items-start gap-3 animate-fadeIn">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">Document Ingested</p>
+                <p className="mt-1 leading-relaxed">{success}</p>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-card text-xs flex items-start gap-3 animate-fadeIn">
+              <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">Upload Issue</p>
+                <p className="mt-1 leading-relaxed">{error}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Document Library History ────────────────────────────────────────── */}
+        <div className="octo-card p-6 md:p-8 space-y-6">
+          <div className="flex items-center gap-2 border-b border-octo-border pb-4">
+            <BookOpen className="h-5 w-5 text-octo-orange" />
+            <h2 className="text-lg font-semibold text-octo-charcoal">Session Upload Log</h2>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="text-center py-10 border border-octo-border rounded-card bg-octo-surface-warm/40">
+              <FileText className="h-8 w-8 text-octo-muted mx-auto mb-2" />
+              <p className="text-sm font-medium text-octo-charcoal">No documents uploaded in this session yet.</p>
+              <p className="text-xs text-octo-muted mt-1">Uploaded manuals will appear here after ingestion.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-octo-border border border-octo-border rounded-card overflow-hidden bg-white">
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs hover:bg-octo-surface-warm/50 transition-colors gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`p-2 rounded-btn border shrink-0 ${
+                        item.status === "success"
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          : "bg-red-50 border-red-200 text-red-700"
+                      }`}
+                    >
+                      <File className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-200 truncate">{selectedFile.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{formatBytes(selectedFile.size)}</p>
+                      <p className="font-semibold text-octo-charcoal text-sm truncate">{item.filename}</p>
+                      <p className="text-xs text-octo-muted mt-0.5">
+                        Uploaded at {item.timestamp.toLocaleTimeString()} · Status:{" "}
+                        {item.status === "success" ? "✓ Ready for search" : "Upload error"}
+                      </p>
                     </div>
                   </div>
-                  <button
-                    onClick={handleUpload}
-                    disabled={isUploading}
-                    className="flex items-center space-x-1.5 px-4.5 py-2.5 rounded-xl text-xs font-semibold text-white bg-violet-600 hover:bg-violet-500 shadow-md shadow-violet-500/10 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
+
+                  <div className="shrink-0 flex items-center self-end sm:self-center">
+                    {item.status === "success" ? (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        v1 · Ready
+                      </span>
                     ) : (
-                      <span>Start Upload</span>
+                      <span
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 cursor-help"
+                        title={item.details}
+                      >
+                        Failed
+                      </span>
                     )}
-                  </button>
-                </div>
-              )}
-
-              {/* Progress indicator */}
-              {isUploading && (
-                <div className="space-y-2.5 animate-fadeIn">
-                  <div className="flex justify-between text-xs font-medium text-slate-400">
-                    <span>Uploading and Parsing Document...</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                    <div
-                      className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
                   </div>
                 </div>
-              )}
-
-              {/* Status Alert Panels */}
-              {success && (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex items-start space-x-3 animate-fadeIn">
-                  <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-slate-200">Processing Success</p>
-                    <p className="mt-1 leading-relaxed">{success}</p>
-                  </div>
-                </div>
-              )}
-
-              {error && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-xs flex items-start space-x-3 animate-fadeIn">
-                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-slate-200">Processing Failed</p>
-                    <p className="mt-1 leading-relaxed">{error}</p>
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
-
-            {/* Upload History List */}
-            <div className="glass-card rounded-3xl p-6 md:p-8 space-y-6">
-              <div>
-                <h3 className="text-md font-semibold text-slate-100">Session Processing Log</h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  History of files processed during this administrative session.
-                </p>
-              </div>
-
-              {history.length === 0 ? (
-                <div className="text-center py-10 border border-slate-900/50 rounded-2xl bg-slate-900/10">
-                  <FileText className="h-7 w-7 text-slate-600 mx-auto mb-2.5" />
-                  <p className="text-xs text-slate-500">No documents uploaded in this session yet.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-900 border border-slate-900 rounded-2xl overflow-hidden bg-slate-900/10">
-                  {history.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs hover:bg-slate-900/20 transition-all gap-2"
-                    >
-                      <div className="flex items-start space-x-3 min-w-0">
-                        <div
-                          className={`p-2 rounded-lg border shrink-0 ${
-                            item.status === "success"
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                              : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                          }`}
-                        >
-                          <File className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-200 truncate">{item.filename}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            {item.timestamp.toLocaleTimeString()} -{" "}
-                            {item.status === "success"
-                              ? `Processed -> ${item.markdownFile}`
-                              : `Failed`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="shrink-0 flex items-center self-end sm:self-center">
-                        {item.status === "success" ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            Processed
-                          </span>
-                        ) : (
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 cursor-help"
-                            title={item.details}
-                          >
-                            Error
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
+          )}
         </div>
       </main>
     </div>
