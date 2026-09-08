@@ -11,7 +11,7 @@ from app.services.parser import ParserService
 from app.services.retriever import retrieve_context
 from app.services.prompt_builder import build_prompt
 from app.config import LLM_PROVIDER, LLM_MODEL, GROQ_API_KEY, SAMBANOVA_API_KEY
-from app.services.prompt_guard import is_prompt_injection
+from app.services.prompt_guard import is_prompt_injection, is_out_of_domain
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -209,6 +209,11 @@ async def chat(payload: ChatRequest, request: Request):
     """
     if is_prompt_injection(payload.message):
         raise HTTPException(status_code=400, detail="Potential prompt injection detected.")
+    if is_out_of_domain(payload.message):
+        raise HTTPException(
+            status_code=400,
+            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+        )
 
     from app.config import MAX_CLARIFICATION_ATTEMPTS
     session_id = payload.session_id
@@ -245,6 +250,11 @@ async def chat(payload: ChatRequest, request: Request):
 
         if is_prompt_injection(resolved_query):
             raise HTTPException(status_code=400, detail="Potential prompt injection detected in reconstructed query.")
+        if is_out_of_domain(resolved_query):
+            raise HTTPException(
+                status_code=400,
+                detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+            )
 
         if res_conf == "LOW":
             # If the follow-up makes no sense, trigger another clarification immediately
@@ -337,6 +347,11 @@ async def chat_stream(request: Request, payload: ChatRequest):
     # Prompt injection check
     if is_prompt_injection(payload.message):
         raise HTTPException(status_code=400, detail="Security Violation: Invalid input detected.")
+    if is_out_of_domain(payload.message):
+        raise HTTPException(
+            status_code=400,
+            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+        )
 
     chunks, confidence = retrieve_context(payload.message, source_file=payload.source_file)
     if confidence == "LOW" or not chunks:
@@ -513,6 +528,11 @@ async def troubleshoot(payload: TroubleshootRequest, request: Request):
     """
     if is_prompt_injection(payload.message):
         raise HTTPException(status_code=400, detail="Potential prompt injection detected.")
+    if is_out_of_domain(payload.message):
+        raise HTTPException(
+            status_code=400,
+            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+        )
 
     from app.services.workflow_manager import process_troubleshoot_turn
     try:
@@ -531,6 +551,11 @@ async def agent_run(payload: AgentRequest, request: Request):
     """
     if is_prompt_injection(payload.query):
         raise HTTPException(status_code=400, detail="Potential prompt injection detected.")
+    if is_out_of_domain(payload.query):
+        raise HTTPException(
+            status_code=400,
+            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+        )
         
     session_id = payload.session_id
     if not session_id:

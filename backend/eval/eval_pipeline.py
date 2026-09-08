@@ -146,7 +146,7 @@ def profile_pipeline():
 
         # 2. Profile Text Context Retrieval (Hybrid Dense + Sparse RRF)
         t1 = time.perf_counter()
-        chunks, confidence = retrieve_context(normalized_query)
+        chunks, confidence = retrieve_context(normalized_query, query_entities={})
         t_ret = (time.perf_counter() - t1) * 1000
 
         # 3. Profile SigLIP Vision Embedding
@@ -265,7 +265,7 @@ def generate_charts(output_dir: Path, latency_data: dict, metrics_data: dict):
                     ha='center', va='bottom', fontsize=10, fontweight='bold', color='#f8fafc')
 
     plt.tight_layout()
-    plt.savefig(output_dir / "latency_breakdown.png", dpi=300)
+    plt.savefig(str(output_dir / "latency_breakdown.png"), dpi=300)
     plt.close()
 
     # Chart 2: Retrieval Quality Metrics Bar Chart
@@ -288,7 +288,7 @@ def generate_charts(output_dir: Path, latency_data: dict, metrics_data: dict):
                     ha='center', va='bottom', fontsize=10, fontweight='bold', color='#f8fafc')
 
     plt.tight_layout()
-    plt.savefig(output_dir / "retrieval_benchmark.png", dpi=300)
+    plt.savefig(str(output_dir / "retrieval_benchmark.png"), dpi=300)
     plt.close()
 
 
