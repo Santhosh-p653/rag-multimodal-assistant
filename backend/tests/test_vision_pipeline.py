@@ -2,9 +2,7 @@
 test_vision_pipeline.py — Unit tests for SigLIP 2 Vision Embedding & Parallel Retrieval Pipeline.
 """
 
-import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,18 +14,8 @@ for mod_name in ["qdrant_client", "qdrant_client.models", "sentence_transformers
         del sys.modules[mod_name]
 
 import qdrant_client
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance,
-    FieldCondition,
-    Filter,
-    MatchValue,
-    PointStruct,
-    VectorParams,
-)
 
-from app.config import settings
-from app.services.retriever import retrieve_context, retrieve_context_with_vision
+from app.services.retriever import retrieve_context_with_vision
 from app.services.vector_store import VectorStoreService
 from app.services.vision_embedder import VisionEmbedderService
 from app.services.vision_search import search_similar_images
