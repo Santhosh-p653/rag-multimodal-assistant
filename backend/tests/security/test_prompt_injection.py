@@ -1,7 +1,10 @@
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-import sys
+# ruff: noqa: E402
+
 import os
+import sys
+from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -69,12 +72,18 @@ def test_out_of_domain_queries():
 
 
 def test_safe_messages():
-    with patch("app.main.retrieve_context") as mock_ret, patch("app.main.call_llm") as mock_llm:
+    with (
+        patch("app.main.retrieve_context") as mock_ret,
+        patch("app.main.call_llm") as mock_llm,
+    ):
         mock_ret.return_value = (
             [{"chunk_id": "c1", "content": "RAG data", "source": "m.txt"}],
-            "HIGH"
+            "HIGH",
         )
         mock_llm.return_value = "This is a safe response"
 
-        response = client.post("/chat", json={"message": "How do I turn it on?"})
+        response = client.post(
+            "/chat",
+            json={"message": "How do I turn it on?"},
+        )
         assert response.status_code == 200
