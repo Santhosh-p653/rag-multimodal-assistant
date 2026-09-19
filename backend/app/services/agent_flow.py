@@ -388,12 +388,12 @@ def classify_mode(state: AgentState) -> Dict[str, Any]:
     from app.config import settings
     
 
-    if settings.LLM_PROVIDER != "none":
+    if settings.LLM_PROVIDER != "none" or settings.OLLAMA_ENABLED:
         prompt = f"""Classify the user's technical support query.
 Query: "{state["query"]}"
 Respond with either 'troubleshoot' (if reporting a problem, error, or failure) or 'qa' (if asking a general information question). Do not include any other text or explanation. Only respond with 'troubleshoot' or 'qa'."""
         try:
-            llm_response = call_llm(prompt).strip().lower()
+            llm_response = call_llm(prompt, task="classification").strip().lower()
             mode = "troubleshoot" if "troubleshoot" in llm_response else "qa"
             print(f"[AgentFlow] LLM classifier: {mode} mode.")
             return {"mode": mode}
@@ -578,7 +578,7 @@ Context:
 {context_str}
 
 User Question: {query}\nAnswer:""" + hedge_note
-        answer = call_llm(prompt)
+        answer = call_llm(prompt, task="chat")
         return {"answer": answer}
     else:
         prompt = f"""You are a technical support diagnostic assistant. Analyze the context and provide a step-by-step diagnostic guide for the user's troubleshooting issue.
@@ -597,7 +597,7 @@ Context:
 {context_str}
 
 User Query: {query}""" + hedge_note
-        response_text = call_llm(prompt)
+        response_text = call_llm(prompt, task="workflow")
         cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
 
         try:

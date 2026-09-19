@@ -42,7 +42,7 @@ Return ONLY a valid JSON object matching this schema exactly (do not wrap in mar
 }}
 """
     try:
-        response_text = call_llm(prompt)
+        response_text = call_llm(prompt, task="classification")
         cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
         data = json.loads(cleaned_text)
         

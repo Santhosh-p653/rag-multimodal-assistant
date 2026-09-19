@@ -2,15 +2,9 @@
 embedder.py — Singleton embedding service using sentence-transformers.
 Loads the model once at startup and reuses it for all embedding calls.
 """
-import os
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
-
+from functools import lru_cache
 from sentence_transformers import SentenceTransformer
 from app.config import EMBED_MODEL
-
-
-from functools import lru_cache
 
 
 class EmbedderService:
@@ -21,7 +15,12 @@ class EmbedderService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             print(f"[Embedder] Loading model: {EMBED_MODEL} ...")
-            cls._instance.model = SentenceTransformer(EMBED_MODEL)
+            try:
+                # Try loading from local Hugging Face cache first
+                cls._instance.model = SentenceTransformer(EMBED_MODEL, local_files_only=True)
+            except Exception:
+                # Fall back to online download if not present in disk cache
+                cls._instance.model = SentenceTransformer(EMBED_MODEL, local_files_only=False)
             print("[Embedder] Model ready.")
         return cls._instance
 

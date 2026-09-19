@@ -54,7 +54,7 @@ User Query: "{raw_query}"
 """
 
     try:
-        response_text = call_llm(prompt)
+        response_text = call_llm(prompt, task="classification")
         cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
         data = json.loads(cleaned_text)
         

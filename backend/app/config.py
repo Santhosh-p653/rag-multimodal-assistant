@@ -17,7 +17,16 @@ class Settings:
     SAMBANOVA_API_KEY: str = os.getenv("SAMBANOVA_API_KEY", "")
     SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "")
 
-    # --- LLM Settings ---
+    # --- Ollama Settings (Primary Local Provider) ---
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_ENABLED: bool = os.getenv("OLLAMA_ENABLED", "true").lower() == "true"
+    OLLAMA_MODEL_CLASSIFICATION: str = os.getenv("OLLAMA_MODEL_CLASSIFICATION", "qwen2.5:3b")
+    OLLAMA_MODEL_CHAT: str = os.getenv("OLLAMA_MODEL_CHAT", "gemma3:4b")
+    OLLAMA_MODEL_WORKFLOW: str = os.getenv("OLLAMA_MODEL_WORKFLOW", "llama3.2:3b")
+    OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "5"))
+    OLLAMA_READ_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_READ_TIMEOUT_SECONDS", "180"))
+
+    # --- LLM Settings (Cloud Fallback) ---
     LLM_PROVIDER: str = "none"
     LLM_MODEL: str = ""
 
@@ -67,6 +76,13 @@ class Settings:
 settings = Settings()
 
 # Module-level variable mapping for backward compatibility
+OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL
+OLLAMA_ENABLED = settings.OLLAMA_ENABLED
+OLLAMA_MODEL_CLASSIFICATION = settings.OLLAMA_MODEL_CLASSIFICATION
+OLLAMA_MODEL_CHAT = settings.OLLAMA_MODEL_CHAT
+OLLAMA_MODEL_WORKFLOW = settings.OLLAMA_MODEL_WORKFLOW
+OLLAMA_TIMEOUT_SECONDS = settings.OLLAMA_TIMEOUT_SECONDS
+OLLAMA_READ_TIMEOUT_SECONDS = settings.OLLAMA_READ_TIMEOUT_SECONDS
 GROQ_API_KEY = settings.GROQ_API_KEY
 SAMBANOVA_API_KEY = settings.SAMBANOVA_API_KEY
 SARVAM_API_KEY = settings.SARVAM_API_KEY
