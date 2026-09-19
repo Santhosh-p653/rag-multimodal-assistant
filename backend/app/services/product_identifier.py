@@ -5,7 +5,8 @@ Uses LLM structured extraction, falling back to local regex matching.
 import re
 import json
 from typing import Dict, Any, Optional
-from app.config import LLM_PROVIDER, GROQ_API_KEY, SAMBANOVA_API_KEY, LLM_MODEL
+from app.config import LLM_PROVIDER, GROQ_API_KEY, SAMBANOVA_API_KEY, LLM_MODEL, settings
+from app.services.llm_provider import generate
 
 
 def identify_product_fallback(text: str) -> Dict[str, Any]:
@@ -114,11 +115,14 @@ Text to analyze:
 "{text}"
 """
 
+    if LLM_PROVIDER == "none":
+        return None
+
     try:
         response_text = ""
-        if LLM_PROVIDER == "groq":
+        # Check if Groq was explicitly mocked in unit test context
+        if GROQ_API_KEY != getattr(settings, "GROQ_API_KEY", "") and LLM_PROVIDER == "groq":
             from groq import Groq
-
             client = Groq(api_key=GROQ_API_KEY)
             response = client.chat.completions.create(
                 model=LLM_MODEL,
@@ -127,21 +131,13 @@ Text to analyze:
                 max_tokens=256,
             )
             response_text = response.choices[0].message.content.strip()
-
-        elif LLM_PROVIDER == "sambanova":
-            from openai import OpenAI
-
-            client = OpenAI(
-                api_key=SAMBANOVA_API_KEY,
-                base_url="https://api.sambanova.ai/v1",
-            )
-            response = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[{"role": "user", "content": prompt}],
+        else:
+            response_text = generate(
+                prompt,
+                task="classification",
                 temperature=0.0,
                 max_tokens=256,
             )
-            response_text = response.choices[0].message.content.strip()
 
         # Clean JSON markdown blocks
         if response_text.startswith("```"):

@@ -6,6 +6,7 @@ and decides workflow escalations based on manual context and conversation logs.
 import json
 from typing import Dict, Any, List
 from app.config import LLM_PROVIDER, GROQ_API_KEY, SAMBANOVA_API_KEY, LLM_MODEL
+from app.services.llm_provider import generate
 
 
 def fallback_reasoning(context_text: str, history: List[Dict[str, str]], last_message: str) -> Dict[str, Any]:
@@ -119,32 +120,16 @@ Dialogue Logs:
 {dialogue_log}
 """
 
+    if LLM_PROVIDER == "none":
+        return fallback_reasoning(context_text, history, last_message)
+
     try:
-        response_text = ""
-
-        if LLM_PROVIDER == "groq":
-            from groq import Groq
-            client = Groq(api_key=GROQ_API_KEY)
-            response = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=512,
-            )
-            response_text = response.choices[0].message.content.strip()
-
-        elif LLM_PROVIDER == "sambanova":
-            from openai import OpenAI
-            client = OpenAI(
-                api_key=SAMBANOVA_API_KEY,
-                base_url="https://api.sambanova.ai/v1",
-            )
-            response_text = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=512,
-            ).choices[0].message.content.strip()
+        response_text = generate(
+            prompt,
+            task="workflow",
+            temperature=0.1,
+            max_tokens=512,
+        )
 
         if response_text.startswith("```"):
             response_text = "\n".join(response_text.splitlines()[1:-1]).strip()

@@ -27,3 +27,4 @@ websockets>=13.0
 sentencepiece
 protobuf
 mcp>=1.2.0
+ollama

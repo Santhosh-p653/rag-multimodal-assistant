@@ -103,40 +103,18 @@ class AgentResponse(BaseModel):
     status: Optional[str] = None
     images: list[dict] = []
 
+from app.services.llm_provider import generate, llm_provider
+
 # ─── LLM Helper ─────────────────────────────────────────────────────────────
 
-def call_llm(prompt: str) -> str:
-    """Call the configured LLM provider and return the response text."""
-
-    if LLM_PROVIDER == "groq":
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=1024,
-        )
-        return response.choices[0].message.content.strip()
-
-    elif LLM_PROVIDER == "sambanova":
-        from openai import OpenAI
-        client = OpenAI(
-            api_key=SAMBANOVA_API_KEY,
-            base_url="https://api.sambanova.ai/v1",
-        )
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=1024,
-        )
-        return response.choices[0].message.content.strip()
-
-    else:
-        raise RuntimeError(
-            "No LLM API key configured. Add GROQ_API_KEY or SAMBANOVA_API_KEY to backend/.env"
-        )
+def call_llm(
+    prompt: str,
+    task: str = "chat",
+    system_prompt: Optional[str] = None,
+    **kwargs,
+) -> str:
+    """Call the unified LLM provider (Ollama primary with automatic cloud fallback)."""
+    return generate(prompt, task=task, system_prompt=system_prompt, **kwargs)
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
 
@@ -144,11 +122,21 @@ def call_llm(prompt: str) -> str:
 def health():
     from app.services.vector_store import VectorStoreService
     vs = VectorStoreService()
+    active_provider = (
+        "ollama" if (llm_provider.ollama_enabled and llm_provider.last_provider_used == "ollama")
+        else (llm_provider.last_provider_used if llm_provider.last_provider_used != "none" else ("ollama" if llm_provider.ollama_enabled else LLM_PROVIDER))
+    )
     return {
         "status": "ok",
-        "llm_provider": LLM_PROVIDER,
+        "llm_provider": active_provider,
         "vectors_stored": vs.count(),
     }
+
+
+@app.get("/health/llm")
+def health_llm():
+    """Detailed LLM provider telemetry: primary reachability, cloud fallback, and model mappings."""
+    return llm_provider.get_status()
 
 
 @app.get("/files")
@@ -318,7 +306,7 @@ async def chat(payload: ChatRequest, request: Request):
 
     # Step 5: Call LLM
     try:
-        answer = call_llm(prompt)
+        answer = call_llm(prompt, task="chat")
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -365,7 +353,7 @@ async def chat_stream(request: Request, payload: ChatRequest):
         return StreamingResponse(fallback_generator(), media_type="text/event-stream")
 
     prompt = build_prompt(chunks, payload.message)
-    full_answer = call_llm(prompt)
+    full_answer = call_llm(prompt, task="chat")
 
     async def token_generator():
         # Stream response tokens/words incrementally for real-time UI rendering
