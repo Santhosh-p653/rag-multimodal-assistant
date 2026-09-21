@@ -81,7 +81,7 @@ class UploadResponse(BaseModel):
 
 class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4000)
-    language: Optional[str] = "en"
+    language: Optional[str] = "auto"
 
 class TroubleshootRequest(BaseModel):
     session_id: str = Field(..., min_length=1, max_length=100)
@@ -503,11 +503,11 @@ async def get_document_image(request: Request, document_id: str, image_id: str):
 @app.post("/speak")
 @limiter.limit("20/minute")
 async def speak(payload: SpeakRequest, request: Request):
-    """Generate text-to-speech MP3 stream using edge-tts."""
+    """Generate text-to-speech stream using Sarvam AI (for Indian languages) or Edge-TTS."""
     try:
         from app.services.audio import speak_text
-        audio_bytes = await speak_text(payload.text, payload.language)
-        return Response(content=audio_bytes, media_type="audio/mpeg")
+        audio_bytes, media_type = await speak_text(payload.text, payload.language)
+        return Response(content=audio_bytes, media_type=media_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -586,3 +586,60 @@ async def agent_run(payload: AgentRequest, request: Request):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow execution failed: {str(e)}")
+
+
+# ─── Chat History & Session Persistence Endpoints ─────────────────────────
+
+class SessionPayload(BaseModel):
+    session_id: str
+    user_id: str = "default_user"
+    title: Optional[str] = None
+    messages: list[dict] = []
+    product: Optional[str] = None
+    status: Optional[str] = None
+
+
+@app.get("/sessions")
+def list_sessions(user_id: str = "default_user"):
+    """Retrieve all chat sessions for a specific user."""
+    from app.services.session_store import SessionStore
+    store = SessionStore()
+    return {"sessions": store.list_by_user(user_id)}
+
+
+@app.get("/sessions/{session_id}")
+def get_session(session_id: str):
+    """Retrieve full conversation details for a specific session."""
+    from app.services.session_store import SessionStore
+    store = SessionStore()
+    if session_id not in store.sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return store.get(session_id)
+
+
+@app.post("/sessions")
+def save_session(payload: SessionPayload):
+    """Persist or update chat session messages and state."""
+    from app.services.session_store import SessionStore
+    store = SessionStore()
+    existing = store.get(payload.session_id)
+    existing["user_id"] = payload.user_id
+    if payload.title:
+        existing["title"] = payload.title
+    if payload.messages:
+        existing["messages"] = payload.messages
+    if payload.product:
+        existing["product"] = payload.product
+    if payload.status:
+        existing["status"] = payload.status
+    store.save(payload.session_id, existing)
+    return {"status": "ok", "session_id": payload.session_id}
+
+
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: str):
+    """Delete a chat session."""
+    from app.services.session_store import SessionStore
+    store = SessionStore()
+    store.clear(session_id)
+    return {"status": "deleted", "session_id": session_id}

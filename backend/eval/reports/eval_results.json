@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-09-09 02:14:01",
+  "timestamp": "2026-09-21 11:10:19",
   "average_latency_ms": {
     "query_understanding": 0.0,
-    "text_retrieval_rrf": 4273.98,
-    "vision_embedding": 306.85,
-    "total_retrieval": 4580.83
+    "text_retrieval_rrf": 4610.16,
+    "vision_embedding": 201.3,
+    "total_retrieval": 4811.46
   },
   "average_metrics": {
-    "precision_at_3": 0.92,
-    "precision_at_5": 0.704,
-    "recall_at_5": 0.68,
-    "mrr": 1.0,
+    "precision_at_3": 0.76,
+    "precision_at_5": 0.672,
+    "recall_at_5": 0.584,
+    "mrr": 0.9333,
     "hit_rate": 1.0
   },
   "sample_evaluations": [
@@ -20,14 +20,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 4471.67,
-        "vision_embedding": 1914.99,
-        "total": 6386.66
+        "text_retrieval_rrf": 14984.63,
+        "vision_embedding": 2834.5,
+        "total": 17819.13
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -38,14 +38,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 2591.23,
-        "vision_embedding": 1332.07,
-        "total": 3923.3
+        "text_retrieval_rrf": 4500.71,
+        "vision_embedding": 83.98,
+        "total": 4584.69
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -56,14 +56,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 2953.15,
-        "vision_embedding": 215.03,
-        "total": 3168.18
+        "text_retrieval_rrf": 4018.52,
+        "vision_embedding": 87.96,
+        "total": 4106.49
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
         "mrr": 1.0,
         "hit": 1
       }
@@ -74,14 +74,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 2497.73,
-        "vision_embedding": 220.28,
-        "total": 2718.01
+        "text_retrieval_rrf": 4753.83,
+        "vision_embedding": 63.68,
+        "total": 4817.51
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -92,9 +92,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3570.47,
-        "vision_embedding": 183.94,
-        "total": 3754.4
+        "text_retrieval_rrf": 3901.94,
+        "vision_embedding": 88.2,
+        "total": 3990.13
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -110,15 +110,15 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3591.16,
-        "vision_embedding": 456.33,
-        "total": 4047.49
+        "text_retrieval_rrf": 3998.95,
+        "vision_embedding": 88.13,
+        "total": 4087.07
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
-        "mrr": 1.0,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 0.5,
         "hit": 1
       }
     },
@@ -128,9 +128,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3889.09,
-        "vision_embedding": 84.24,
-        "total": 3973.33
+        "text_retrieval_rrf": 4092.2,
+        "vision_embedding": 81.56,
+        "total": 4173.75
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -146,14 +146,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3807.5,
-        "vision_embedding": 1055.42,
-        "total": 4862.92
+        "text_retrieval_rrf": 4124.69,
+        "vision_embedding": 98.42,
+        "total": 4223.12
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -164,14 +164,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5681.03,
-        "vision_embedding": 295.98,
-        "total": 5977.01
+        "text_retrieval_rrf": 4390.08,
+        "vision_embedding": 89.15,
+        "total": 4479.23
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -182,9 +182,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 4952.99,
-        "vision_embedding": 53.49,
-        "total": 5006.48
+        "text_retrieval_rrf": 4105.4,
+        "vision_embedding": 92.67,
+        "total": 4198.07
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -200,14 +200,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3673.02,
-        "vision_embedding": 186.98,
-        "total": 3860.0
+        "text_retrieval_rrf": 3938.02,
+        "vision_embedding": 86.07,
+        "total": 4024.09
       },
       "metrics": {
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
         "hit": 1
       }
@@ -218,14 +218,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 4706.59,
-        "vision_embedding": 256.38,
-        "total": 4962.97
+        "text_retrieval_rrf": 3993.79,
+        "vision_embedding": 98.97,
+        "total": 4092.76
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
+        "precision_at_3": 0.3333,
+        "precision_at_5": 0.2,
+        "recall_at_5": 0.2,
         "mrr": 1.0,
         "hit": 1
       }
@@ -236,15 +236,15 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3426.01,
-        "vision_embedding": 62.22,
-        "total": 3488.23
+        "text_retrieval_rrf": 4159.57,
+        "vision_embedding": 80.57,
+        "total": 4240.14
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
-        "mrr": 1.0,
+        "precision_at_3": 0.3333,
+        "precision_at_5": 0.2,
+        "recall_at_5": 0.2,
+        "mrr": 0.5,
         "hit": 1
       }
     },
@@ -254,9 +254,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3596.51,
-        "vision_embedding": 96.15,
-        "total": 3692.66
+        "text_retrieval_rrf": 4379.09,
+        "vision_embedding": 206.04,
+        "total": 4585.14
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -272,9 +272,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3864.13,
-        "vision_embedding": 143.19,
-        "total": 4007.32
+        "text_retrieval_rrf": 3910.58,
+        "vision_embedding": 63.04,
+        "total": 3973.62
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -290,45 +290,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5059.39,
-        "vision_embedding": 116.56,
-        "total": 5175.95
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "How to remove and clean clogged spray arm nozzles on DW-800?",
-      "category": "Dishwasher / Maintenance",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 0.0,
-        "text_retrieval_rrf": 3903.22,
-        "vision_embedding": 90.09,
-        "total": 3993.31
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "Where is the water inlet solenoid valve located on model DW-800?",
-      "category": "Dishwasher / Component",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 0.0,
-        "text_retrieval_rrf": 4924.29,
-        "vision_embedding": 136.5,
-        "total": 5060.79
+        "text_retrieval_rrf": 4151.56,
+        "vision_embedding": 61.47,
+        "total": 4213.04
       },
       "metrics": {
         "precision_at_3": 1.0,
@@ -339,14 +303,50 @@
       }
     },
     {
+      "query": "How to remove and clean clogged spray arm nozzles on DW-800?",
+      "category": "Dishwasher / Maintenance",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4169.57,
+        "vision_embedding": 97.87,
+        "total": 4267.45
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.8,
+        "recall_at_5": 0.8,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "Where is the water inlet solenoid valve located on model DW-800?",
+      "category": "Dishwasher / Component",
+      "chunks_retrieved": 5,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4151.34,
+        "vision_embedding": 69.83,
+        "total": 4221.18
+      },
+      "metrics": {
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
       "query": "Why is the dishwasher detergent tablet dispenser flap not opening?",
       "category": "Dishwasher / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5530.21,
-        "vision_embedding": 97.15,
-        "total": 5627.36
+        "text_retrieval_rrf": 4117.59,
+        "vision_embedding": 88.37,
+        "total": 4205.97
       },
       "metrics": {
         "precision_at_3": 0.6667,
@@ -362,45 +362,9 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5517.52,
-        "vision_embedding": 169.15,
-        "total": 5686.66
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "How to calibrate humidity sensor on newly uploaded Smart Oven SO-500?",
-      "category": "Newly Uploaded / Oven",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 0.0,
-        "text_retrieval_rrf": 5225.12,
-        "vision_embedding": 65.6,
-        "total": 5290.72
-      },
-      "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
-        "mrr": 1.0,
-        "hit": 1
-      }
-    },
-    {
-      "query": "What is the maximum noise decibel rating for dryer model DR-300?",
-      "category": "Newly Uploaded / Dryer",
-      "chunks_retrieved": 5,
-      "latency_ms": {
-        "query_understanding": 0.0,
-        "text_retrieval_rrf": 5081.35,
-        "vision_embedding": 74.42,
-        "total": 5155.77
+        "text_retrieval_rrf": 4117.67,
+        "vision_embedding": 60.32,
+        "total": 4177.99
       },
       "metrics": {
         "precision_at_3": 0.3333,
@@ -411,19 +375,55 @@
       }
     },
     {
-      "query": "How to enable Eco Mode on newly ingested Smart HVAC H-100 manual?",
-      "category": "Newly Uploaded / HVAC",
+      "query": "How to calibrate humidity sensor on newly uploaded Smart Oven SO-500?",
+      "category": "Newly Uploaded / Oven",
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5209.51,
-        "vision_embedding": 103.58,
-        "total": 5313.09
+        "text_retrieval_rrf": 4153.17,
+        "vision_embedding": 103.81,
+        "total": 4256.98
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 0.3333,
+        "hit": 1
+      }
+    },
+    {
+      "query": "What is the maximum noise decibel rating for dryer model DR-300?",
+      "category": "Newly Uploaded / Dryer",
+      "chunks_retrieved": 1,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4177.05,
+        "vision_embedding": 100.19,
+        "total": 4277.25
+      },
+      "metrics": {
+        "precision_at_3": 0.3333,
+        "precision_at_5": 1.0,
+        "recall_at_5": 0.2,
+        "mrr": 1.0,
+        "hit": 1
+      }
+    },
+    {
+      "query": "How to enable Eco Mode on newly ingested Smart HVAC H-100 manual?",
+      "category": "Newly Uploaded / HVAC",
+      "chunks_retrieved": 1,
+      "latency_ms": {
+        "query_understanding": 0.0,
+        "text_retrieval_rrf": 4313.82,
+        "vision_embedding": 107.85,
+        "total": 4421.67
+      },
+      "metrics": {
+        "precision_at_3": 0.3333,
+        "precision_at_5": 1.0,
+        "recall_at_5": 0.2,
         "mrr": 1.0,
         "hit": 1
       }
@@ -434,14 +434,14 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 3891.47,
-        "vision_embedding": 165.51,
-        "total": 4056.98
+        "text_retrieval_rrf": 4215.47,
+        "vision_embedding": 93.26,
+        "total": 4308.74
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
         "hit": 1
       }
@@ -452,9 +452,9 @@
       "chunks_retrieved": 2,
       "latency_ms": {
         "query_understanding": 0.0,
-        "text_retrieval_rrf": 5235.22,
-        "vision_embedding": 96.01,
-        "total": 5331.23
+        "text_retrieval_rrf": 4434.64,
+        "vision_embedding": 106.53,
+        "total": 4541.18
       },
       "metrics": {
         "precision_at_3": 0.6667,

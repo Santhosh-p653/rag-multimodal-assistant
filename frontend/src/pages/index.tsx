@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Wrench,
@@ -10,14 +10,24 @@ import {
   Globe,
   SlidersHorizontal,
   RefreshCw,
-  Type
+  Type,
+  History,
+  Plus
 } from "lucide-react";
 import { ChatWindow } from "../components/ChatWindow";
 import { ChatInput } from "../components/ChatInput";
 import { AudioRecorder } from "../components/AudioRecorder";
 import { Message } from "../components/MessageBubble";
 import { ToastContainer, ToastMessage } from "../components/Toast";
-import { sendMessage, fetchFiles, transcribeAudio } from "../lib/api";
+import { ChatHistorySidebar } from "../components/ChatHistorySidebar";
+import {
+  sendMessage,
+  fetchFiles,
+  transcribeAudio,
+  StoredSession,
+  saveSessionBackend,
+  deleteSessionBackend,
+} from "../lib/api";
 
 interface HealthInfo {
   status: string;
@@ -52,6 +62,12 @@ export default function Home() {
   const [textSize, setTextSize] = useState<"standard" | "large" | "xl">("standard");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // Persistent User & Chat History State
+  const [userId, setUserId] = useState<string>("user_default");
+  const [sessions, setSessions] = useState<StoredSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
   const addToast = useCallback((type: ToastMessage["type"], title: string, description?: string) => {
     const id = Math.random().toString(36).substring(7);
     setToasts((prev) => [...prev, { id, type, title, description }]);
@@ -59,6 +75,43 @@ export default function Home() {
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Initialize or restore consistent User ID and Chat Sessions across reloads
+  useEffect(() => {
+    let uid = localStorage.getItem("octo_user_id");
+    if (!uid) {
+      uid = `user_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
+      localStorage.setItem("octo_user_id", uid);
+    }
+    setUserId(uid);
+
+    const savedRaw = localStorage.getItem(`octo_chat_sessions_${uid}`);
+    let parsedSessions: StoredSession[] = [];
+    if (savedRaw) {
+      try {
+        parsedSessions = JSON.parse(savedRaw);
+        setSessions(parsedSessions);
+      } catch (e) {
+        console.error("Failed to parse saved chat history:", e);
+      }
+    }
+
+    const savedActiveId = localStorage.getItem(`octo_active_session_id_${uid}`);
+    if (savedActiveId && parsedSessions.length > 0) {
+      const active = parsedSessions.find((s) => s.id === savedActiveId);
+      if (active && active.messages && active.messages.length > 0) {
+        setActiveSessionId(active.id);
+        setMessages(
+          active.messages.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          }))
+        );
+        if (active.selectedFile !== undefined) setSelectedFile(active.selectedFile);
+        if (active.isTroubleshooting !== undefined) setIsTroubleshooting(active.isTroubleshooting);
+      }
+    }
   }, []);
 
   // Offline / Reconnect Network Listener
@@ -126,10 +179,88 @@ export default function Home() {
     }
   }, [backendOnline]);
 
+  // Synchronize conversation turn to localStorage and backend
+  const syncSession = useCallback(
+    (
+      newMessages: Message[],
+      currentSessId: string | null,
+      troubleshooting: boolean,
+      fileFilter: string | null
+    ) => {
+      if (newMessages.length === 0) return currentSessId;
+
+      const uid = localStorage.getItem("octo_user_id") || userId;
+      const now = Date.now();
+      let sessId = currentSessId;
+      if (!sessId) {
+        sessId = `sess_${Math.random().toString(36).substring(2, 9)}_${now.toString(36)}`;
+        setActiveSessionId(sessId);
+        localStorage.setItem(`octo_active_session_id_${uid}`, sessId);
+      }
+
+      const firstUserMsg = newMessages.find((m) => m.sender === "user");
+      const defaultTitle = firstUserMsg ? firstUserMsg.text.slice(0, 45) : "Technical inquiry";
+
+      setSessions((prev) => {
+        const idx = prev.findIndex((s) => s.id === sessId);
+        let updated: StoredSession[];
+        if (idx >= 0) {
+          const old = prev[idx];
+          const newTitle = !old.title || old.title === "New Conversation" ? defaultTitle : old.title;
+          updated = [...prev];
+          updated[idx] = {
+            ...old,
+            title: newTitle,
+            messages: newMessages,
+            updatedAt: now,
+            selectedFile: fileFilter,
+            isTroubleshooting: troubleshooting,
+          };
+        } else {
+          updated = [
+            {
+              id: sessId!,
+              title: defaultTitle,
+              createdAt: now,
+              updatedAt: now,
+              messages: newMessages,
+              selectedFile: fileFilter,
+              isTroubleshooting: troubleshooting,
+            },
+            ...prev,
+          ];
+        }
+        localStorage.setItem(`octo_chat_sessions_${uid}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      // Background sync to backend
+      saveSessionBackend({
+        session_id: sessId,
+        user_id: uid,
+        title: defaultTitle,
+        messages: newMessages,
+        status: troubleshooting ? "TROUBLESHOOTING" : "ACTIVE",
+      });
+
+      return sessId;
+    },
+    [userId]
+  );
+
   const handleSend = async (text: string) => {
     if (!text || !text.trim()) return;
     setErrorMessage(null);
     setLastQuery(text);
+
+    let sessId = activeSessionId;
+    if (!sessId) {
+      sessId = `sess_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
+      setActiveSessionId(sessId);
+      if (userId) {
+        localStorage.setItem(`octo_active_session_id_${userId}`, sessId);
+      }
+    }
 
     const userMsg: Message = {
       id: Math.random().toString(36).substring(7),
@@ -137,11 +268,14 @@ export default function Home() {
       text,
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+
+    const nextWithUser = [...messages, userMsg];
+    setMessages(nextWithUser);
+    syncSession(nextWithUser, sessId, isTroubleshooting, selectedFile);
     setIsLoading(true);
 
     try {
-      const data = await sendMessage(text, selectedFile);
+      const data = await sendMessage(text, selectedFile, sessId);
       const assistantMsg: Message = {
         id: Math.random().toString(36).substring(7),
         sender: "assistant",
@@ -150,7 +284,9 @@ export default function Home() {
         images: data.images,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      const finalMessages = [...nextWithUser, assistantMsg];
+      setMessages(finalMessages);
+      syncSession(finalMessages, sessId, isTroubleshooting, selectedFile);
     } catch (err: any) {
       const humanError = err.message || "Couldn't connect to the assistant server.";
       setErrorMessage(humanError);
@@ -194,11 +330,68 @@ export default function Home() {
     addToast("info", `Language set to ${name}`);
   };
 
-  const clearChat = () => {
+  // Chat History thread management handlers
+  const handleNewChat = () => {
+    const newId = `sess_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
+    setActiveSessionId(newId);
+    if (userId) {
+      localStorage.setItem(`octo_active_session_id_${userId}`, newId);
+    }
     setMessages([]);
     setErrorMessage(null);
     setLastQuery(null);
     setIsTroubleshooting(false);
+    addToast("info", "New chat started");
+  };
+
+  const handleSelectSession = (sessionId: string) => {
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!target) return;
+    setActiveSessionId(sessionId);
+    if (userId) {
+      localStorage.setItem(`octo_active_session_id_${userId}`, sessionId);
+    }
+    setMessages(
+      target.messages.map((m: any) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }))
+    );
+    setSelectedFile(target.selectedFile || null);
+    setIsTroubleshooting(!!target.isTroubleshooting);
+    setErrorMessage(null);
+    setLastQuery(null);
+    addToast("info", "Loaded conversation", target.title);
+  };
+
+  const handleDeleteSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = sessions.filter((s) => s.id !== sessionId);
+    setSessions(updated);
+    if (userId) {
+      localStorage.setItem(`octo_chat_sessions_${userId}`, JSON.stringify(updated));
+      deleteSessionBackend(sessionId);
+    }
+    if (activeSessionId === sessionId) {
+      handleNewChat();
+    }
+    addToast("info", "Deleted conversation");
+  };
+
+  const handleClearAllSessions = () => {
+    if (confirm("Are you sure you want to clear all conversation history?")) {
+      setSessions([]);
+      if (userId) {
+        localStorage.removeItem(`octo_chat_sessions_${userId}`);
+        localStorage.removeItem(`octo_active_session_id_${userId}`);
+      }
+      handleNewChat();
+      addToast("info", "All conversation history cleared");
+    }
+  };
+
+  const clearChat = () => {
+    handleNewChat();
   };
 
   const startGuidedTroubleshooting = () => {
@@ -210,12 +403,50 @@ export default function Home() {
     <div className={`flex flex-col min-h-screen bg-octo-bg text-octo-charcoal size-${textSize}`}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
+      {/* Chat History Slide-out Drawer */}
+      <ChatHistorySidebar
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={handleSelectSession}
+        onNewChat={handleNewChat}
+        onDeleteSession={handleDeleteSession}
+        onClearAll={handleClearAllSessions}
+        userId={userId}
+      />
+
       {/* ── Top Header ─────────────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-octo-border sticky top-0 z-30 shadow-sm">
         <div className="max-w-[1100px] mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Brand Name */}
-          <div className="flex items-center gap-3">
-            <Link href="/" onClick={clearChat} className="flex items-center gap-2 group">
+          {/* Brand Name & History Action */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* History Toggle Button */}
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="px-2.5 py-1.5 rounded-lg border border-octo-border bg-octo-surface-warm/50 text-octo-charcoal hover:bg-octo-surface-warm transition-colors flex items-center gap-1.5 shadow-sm text-xs font-semibold"
+              title="Open Chat History"
+            >
+              <History className="h-4 w-4 text-octo-orange" />
+              <span className="hidden sm:inline">History</span>
+              {sessions.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-white text-octo-orange border border-octo-border">
+                  {sessions.length}
+                </span>
+              )}
+            </button>
+
+            {/* New Chat Quick Button */}
+            <button
+              onClick={handleNewChat}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-octo-border bg-white text-octo-charcoal hover:bg-octo-surface-warm transition-colors flex items-center gap-1 shadow-sm text-xs font-semibold"
+              title="Start a new chat"
+            >
+              <Plus className="h-3.5 w-3.5 text-octo-orange" />
+              <span className="hidden sm:inline">New</span>
+            </button>
+
+            <Link href="/" onClick={handleNewChat} className="flex items-center gap-2 group ml-1">
               <span className="text-xl font-bold tracking-tight text-octo-charcoal">
                 OCTO <span className="text-octo-orange">RAG</span>
               </span>
@@ -441,6 +672,7 @@ export default function Home() {
               isMuted={isMuted}
               onSuggestionClick={handleSend}
               lastUserQuery={lastQuery || ""}
+              hintLang={hintLang}
             />
 
             {/* Guided Troubleshooting Quick Choice Buttons */}

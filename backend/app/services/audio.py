@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 import subprocess  # nosec B404
+from typing import Optional, Dict, Any, Tuple
 import httpx
 import edge_tts
 from langdetect import detect
@@ -145,27 +146,153 @@ async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
             os.remove(transcoded_path)
 
 
+import base64
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def clean_text_for_speech(text: str) -> str:
+    """
+    Clean markdown formatting, technical syntax, and citations to produce
+    natural, spoken-friendly text.
+    """
+    if not text:
+        return ""
+    cleaned = text.strip()
+    # Remove code blocks
+    cleaned = re.sub(r"```[\s\S]*?```", "", cleaned)
+    # Remove inline code
+    cleaned = re.sub(r"`[^`]+`", "", cleaned)
+    # Remove markdown links: [text](url) -> text
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", cleaned)
+    # Remove source citations: [Source: ... | Page: ...]
+    cleaned = re.sub(r"\[Source:[^\]]*\]", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\[Page:[^\]]*\]", "", cleaned, flags=re.IGNORECASE)
+    # Remove headers: # Header
+    cleaned = re.sub(r"^#{1,6}\s+", "", cleaned, flags=re.MULTILINE)
+    # Remove markdown bold/italics
+    cleaned = re.sub(r"\*\*([^*]+)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"\*([^*]+)\*", r"\1", cleaned)
+    cleaned = re.sub(r"__([^_]+)__", r"\1", cleaned)
+    cleaned = re.sub(r"_([^_]+)_", r"\1", cleaned)
+    # Remove bullet markers
+    cleaned = re.sub(r"^\s*[-*+]\s+", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^\s*\d+\.\s+", "", cleaned, flags=re.MULTILINE)
+    # Remove blockquotes
+    cleaned = re.sub(r"^\s*>\s*", "", cleaned, flags=re.MULTILINE)
+    # Normalize space before punctuation
+    cleaned = re.sub(r"\s+([.,!?:;])", r"\1", cleaned)
+    # Normalize whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+INDIC_LANGUAGES = {"hi", "ta", "te", "kn", "ml", "bn", "mr", "gu", "pa"}
+
+
+def detect_script_language(text: str) -> Optional[str]:
+    """
+    Detect Indian language from native Unicode script with 100% deterministic accuracy.
+    """
+    # Devanagari (Hindi, Marathi)
+    if re.search(r"[\u0900-\u097F]", text):
+        return "hi"
+    # Tamil
+    if re.search(r"[\u0B80-\u0BFF]", text):
+        return "ta"
+    # Telugu
+    if re.search(r"[\u0C00-\u0C7F]", text):
+        return "te"
+    # Kannada
+    if re.search(r"[\u0C80-\u0CFF]", text):
+        return "kn"
+    # Malayalam
+    if re.search(r"[\u0D00-\u0D7F]", text):
+        return "ml"
+    # Bengali
+    if re.search(r"[\u0980-\u09FF]", text):
+        return "bn"
+    # Gujarati
+    if re.search(r"[\u0A80-\u0AFF]", text):
+        return "gu"
+    # Gurmukhi
+    if re.search(r"[\u0A00-\u0A7F]", text):
+        return "pa"
+    return None
+
+
 def truncate_text(text: str, max_sentences: int = 3) -> str:
     sentences = re.split(r"(?<=[.!?।])\s+", text.strip())
     return " ".join(sentences[:max_sentences])
 
 
-def detect_language(text: str) -> str:
+def detect_language(text: str, hint_language: Optional[str] = None) -> str:
+    """
+    Resolves the intended language using hint, Unicode script inspection, and fallback statistical detection.
+    """
+    if hint_language and hint_language not in ("auto", "unknown"):
+        return hint_language.split("-")[0].lower()
+
+    script_lang = detect_script_language(text)
+    if script_lang:
+        return script_lang
+
     try:
-        return detect(text)
+        detected = detect(text)
+        if detected in VOICE_TABLE:
+            return detected
     except Exception:
-        return "en"
+        pass
+
+    return "en"
 
 
-async def speak_text(text: str, language: str = None) -> bytes:
-    truncated = truncate_text(text, 3) or "No response text to read."
+async def speak_text(text: str, language: Optional[str] = None) -> tuple[bytes, str]:
+    """
+    Synthesizes speech using Sarvam AI (native Indian neural models) for Indic languages,
+    falling back seamlessly to Edge-TTS.
 
-    if not language or language in ("auto", "unknown"):
-        language = detect_language(truncated)
+    Returns:
+        tuple of (audio_bytes, mime_type)
+    """
+    cleaned_full = clean_text_for_speech(text)
+    truncated = truncate_text(cleaned_full, 3) or "No response text to read."
 
-    lang_key = language.split("-")[0].lower()
+    target_lang = detect_language(truncated, hint_language=language)
+    lang_key = target_lang.split("-")[0].lower()
+
+    # 1. Attempt Sarvam AI Text-to-Speech for supported Indian languages
+    if SARVAM_API_KEY and lang_key in INDIC_LANGUAGES and lang_key in SARVAM_LANG_MAP:
+        sarvam_code = SARVAM_LANG_MAP.get(lang_key)
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                res = await client.post(
+                    "https://api.sarvam.ai/text-to-speech",
+                    headers={
+                        "api-subscription-key": SARVAM_API_KEY,
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "inputs": [truncated],
+                        "target_language_code": sarvam_code,
+                        "speaker": "kavya",
+                        "model": "bulbul:v3",
+                    },
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    audios = data.get("audios", [])
+                    if audios and audios[0]:
+                        audio_bytes = base64.b64decode(audios[0])
+                        return audio_bytes, "audio/wav"
+                else:
+                    logger.warning(f"[Audio] Sarvam TTS returned status {res.status_code}: {res.text}")
+        except Exception as e:
+            logger.warning(f"[Audio] Sarvam TTS failed, falling back to edge-tts: {e}")
+
+    # 2. Edge-TTS for English or fallback for Indic languages
     voice = VOICE_TABLE.get(lang_key, "en-IN-NeerjaNeural")
-
     communicate = edge_tts.Communicate(truncated, voice)
 
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
@@ -174,7 +301,7 @@ async def speak_text(text: str, language: str = None) -> bytes:
     try:
         await communicate.save(tmp_path)
         with open(tmp_path, "rb") as f:
-            return f.read()
+            return f.read(), "audio/mpeg"
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)

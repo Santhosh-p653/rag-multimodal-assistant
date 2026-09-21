@@ -8,6 +8,7 @@ interface ChatWindowProps {
   isMuted?: boolean;
   onSuggestionClick?: (text: string) => void;
   lastUserQuery?: string;
+  hintLang?: string;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -16,6 +17,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   isMuted = true,
   onSuggestionClick,
   lastUserQuery = "",
+  hintLang = "auto",
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +34,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           isMuted={isMuted}
           onSuggestionClick={onSuggestionClick}
           userQuery={msg.sender === "user" ? msg.text : lastUserQuery}
+          hintLang={hintLang}
         />
       ))}
 

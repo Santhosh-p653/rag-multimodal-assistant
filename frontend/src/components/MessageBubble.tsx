@@ -25,6 +25,7 @@ interface MessageBubbleProps {
   isMuted?: boolean;
   onSuggestionClick?: (suggestionText: string) => void;
   userQuery?: string;
+  hintLang?: string;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -32,6 +33,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isMuted = true,
   onSuggestionClick,
   userQuery = "",
+  hintLang = "auto",
 }) => {
   const isUser = message.sender === "user";
   const [isTtsLoading, setIsTtsLoading] = useState(false);
@@ -59,7 +61,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
     setIsTtsLoading(true);
     try {
-      const audioUrl = await speakText(message.text, "auto");
+      const audioUrl = await speakText(message.text, hintLang || "auto");
 
       if (audioRef.current) {
         audioRef.current.pause();
