@@ -26,12 +26,17 @@ export interface UploadResponse {
  */
 export async function sendMessage(
   message: string,
-  sourceFile: string | null = null
+  sourceFile: string | null = null,
+  sessionId?: string | null
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_URL}/agent/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: message, source_input: sourceFile }),
+    body: JSON.stringify({
+      query: message,
+      source_input: sourceFile,
+      session_id: sessionId || undefined,
+    }),
   });
 
   if (!response.ok) {
@@ -159,3 +164,69 @@ export async function speakText(text: string, language: string): Promise<string>
   const audioBlob = await response.blob();
   return URL.createObjectURL(audioBlob);
 }
+
+// ─── Chat Session Persistence Helpers ─────────────────────────────────────
+
+export interface SessionSummary {
+  session_id: string;
+  user_id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  message_count: number;
+  last_message: string;
+  product?: string;
+  status?: string;
+}
+
+export interface StoredSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: any[];
+  selectedFile?: string | null;
+  isTroubleshooting?: boolean;
+}
+
+export async function fetchUserSessions(userId: string): Promise<SessionSummary[]> {
+  try {
+    const res = await fetch(`${API_URL}/sessions?user_id=${encodeURIComponent(userId)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.sessions || [];
+  } catch (err) {
+    console.warn("Backend session fetch failed (offline or network error):", err);
+    return [];
+  }
+}
+
+export async function saveSessionBackend(payload: {
+  session_id: string;
+  user_id: string;
+  title?: string;
+  messages?: any[];
+  product?: string;
+  status?: string;
+}): Promise<void> {
+  try {
+    await fetch(`${API_URL}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn("Backend session save failed (offline or network error):", err);
+  }
+}
+
+export async function deleteSessionBackend(sessionId: string): Promise<void> {
+  try {
+    await fetch(`${API_URL}/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("Backend session delete failed:", err);
+  }
+}
+
