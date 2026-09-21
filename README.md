@@ -1,95 +1,91 @@
-# 🐙 OCTO RAG: Multimodal Refrigerator Technical Assistant & MCP Server
 
-A production-grade, human-centered **Multimodal Retrieval-Augmented Generation (RAG) Assistant**, **State-Guided Troubleshooting Engine**, and **Model Context Protocol (MCP) Diagnostic Server** built specifically for field service technicians, technical support centers, and enterprise appliance maintenance operations.
+# OCTO-RAG — Multimodal RAG & AI Diagnostic Infrastructure
 
-Octo RAG combines a Next.js 14 human-centered console, a FastAPI async microservice, Google SigLIP 2 visual schematic retrieval, Reciprocal Rank Fusion (RRF) hybrid search, Pre-LLM security domain boundary guards, and native MCP server compatibility.
+**OCTO-RAG** is a multimodal Retrieval-Augmented Generation (RAG) and agentic troubleshooting system built by **Santhosh Paramasivan** for technical appliance diagnostics — combining hybrid retrieval, vision search, stateful workflows, voice I/O, and a native MCP server.
 
----
-
-## 🎯 Operational Problems Solved & Multi-Perspective Approach
-
-Octo RAG addresses high-impact operational friction across appliance maintenance and technical support ecosystems.
-
-### 1. ⏱️ High Mean Time to Resolution (MTTR)
-* **The Operational Problem**: Field technicians and support agents spend up to 40% of their time manually flipping through hundreds of pages of complex PDF/DOCX manuals to find wiring diagrams, error codes, and disassembly sequences.
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: Instantly delivers structured, 18px high-readability answer cards with exact manual citations (`📄 Page 14`), eliminating manual manual flipping.
-  * **Operations Manager Perspective**: Reduces MTTR from 45+ minutes to seconds per ticket, dramatically increasing daily field service call completions.
-  * **System Architect Perspective**: Employs a 3-level waterfall search (Exact Product $\rightarrow$ Family Prefix $\rightarrow$ Global) fused with BM25 sparse keyword matching via Reciprocal Rank Fusion (RRF) ($k=60$), guaranteeing sub-120ms retrieval.
+**Author:** Santhosh Paramasivan
+**GitHub:** [Santhosh-p653](https://github.com/Santhosh-p653)
+**Focus:** AI Infrastructure · Multimodal RAG · Agentic AI · Model Context Protocol (MCP)
 
 ---
 
-### 2. 💸 Escalation Ticket Overload & Support Center Strain
-* **The Operational Problem**: Tier-1 support desks escalate basic maintenance issues to senior engineers due to incomplete initial troubleshooting, bloating support costs.
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: Guides technicians step-by-step (`Step 2 of 4`) through interactive repair cards (`[ 👍 YES ] [ 👎 NO ]`) so junior technicians can resolve complex faults.
-  * **Operations Manager Perspective**: Exhausts manual-backed diagnostic procedures before issuing an explicit human escalation (`ESCALATE`), dropping ticket escalation rates by up to 60%.
-  * **System Architect Perspective**: Utilizes a stateful session registry (`workflow_manager.py`) tracking active states (`START` $\rightarrow$ `QUESTION` $\rightarrow$ `ACTION` $\rightarrow$ `VERIFY` $\rightarrow$ `RESOLVED`/`ESCALATE`) to prevent state drift.
+## What is OCTO-RAG?
+
+A human-centered, production-oriented **Multimodal RAG Assistant**, **State-Guided Troubleshooting Engine**, and **MCP Diagnostic Server** for field service technicians, technical support centers, and appliance maintenance operations.
+
+**Primary identity:** Multimodal RAG system for technical-document intelligence (refrigerator manuals, schematics, error codes).
+
+**Secondary capabilities:**
+- Agentic troubleshooting (LangGraph)
+- Vision retrieval (SigLIP 2)
+- Hybrid text retrieval (BM25 + dense + RRF)
+- Voice interaction (STT/TTS)
+- MCP tools for Claude Desktop / IDEs
+- Pre-LLM security & domain guardrails
+- Stateful diagnostic workflows
+
+Stack: Next.js 14 console · FastAPI async backend · Qdrant · SigLIP 2 · LangGraph · FastMCP.
 
 ---
 
-### 3. 🛑 Hands-Free Field Maintenance Constraints
-* **The Operational Problem**: Service engineers working inside walk-in freezers or holding multimeter probes cannot stop physical work to type search queries on laptop keyboards.
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: A single large hero trigger (`🎤 Tap to speak`) enables voice-driven inquiries, while an automated read-aloud button (`🔊 Listen to answer`) speaks repair steps aloud.
-  * **Operations Manager Perspective**: Enhances field technician safety and productivity in harsh or cramped repair environments.
-  * **System Architect Perspective**: Integrates a hybrid voice pipeline (`audio.py`) utilizing local `faster-whisper` (`int8` CPU) for English, Sarvam AI (`Saaras v3 API`) for Indic regional dialects, and `edge-tts` for neural speech synthesis.
+## Operational Problems Solved
+
+### 1. High Mean Time to Resolution (MTTR)
+Field technicians and support agents lose significant time manually searching PDF/DOCX manuals for wiring diagrams, error codes, and disassembly sequences.
+- **Technician view**: structured answer cards with exact manual citations (`📄 Page 14`).
+- **Ops view**: cuts per-ticket resolution time from tens of minutes to seconds.
+- **Architecture**: 3-level waterfall search (Exact Product → Family Prefix → Global) fused with BM25 sparse matching via Reciprocal Rank Fusion (RRF, k=60), targeting low-latency retrieval.
+
+### 2. Escalation Ticket Overload
+Tier-1 desks escalate basic issues due to incomplete initial troubleshooting.
+- **Technician view**: step-by-step interactive repair cards (`Step 2 of 4`, `[YES] [NO]`).
+- **Ops view**: exhausts manual-backed diagnostics before explicit escalation (`ESCALATE`), reducing escalation volume in internal testing.
+- **Architecture**: stateful session registry (`workflow_manager.py`) tracking `START → QUESTION → ACTION → VERIFY → RESOLVED/ESCALATE`.
+
+### 3. Hands-Free Field Constraints
+Technicians inside freezers or holding multimeter probes can't type queries.
+- **Technician view**: voice trigger (`🎤 Tap to speak`) + read-aloud (`🔊 Listen to answer`).
+- **Architecture**: hybrid voice pipeline (`audio.py`) — `faster-whisper` (int8 CPU) for English, Sarvam AI (Saaras v3) for Indic dialects, `edge-tts` for synthesis.
+
+### 4. Token Cost Leakage
+Off-topic prompts (recipes, car repairs, trivia) burn API cost on public LLM endpoints.
+- **Architecture**: Pre-LLM domain guardrail (`is_out_of_domain` in `prompt_guard.py`) at the FastAPI gateway rejects off-topic prompts with `HTTP 400` before any LLM or vector DB call — zero token spend on rejected queries.
+
+### 5. Tool Silos (MCP Standard)
+Separate tools for manual search, error-code lookup, thermistor testing, and part verification fragment technician workflow.
+- **Architecture**: native FastMCP server (`fridge_mcp_server.py`) exposing 6 diagnostic tools over stdio and SSE (`/mcp/sse`), usable directly inside Claude Desktop or IDEs.
+
+### 6. Audit & SOP Compliance
+No visibility into whether technicians followed official procedure.
+- **Architecture**: all session state transitions recorded in SQLite (`SessionStore`) — questions, answers, recommended steps, manual citations — preserved across multi-turn sessions.
 
 ---
 
-### 4. 🛡️ Token Cost Leakage & Off-Topic LLM Model Abuse
-* **The Operational Problem**: Public LLM APIs incur high financial token costs when users submit off-topic prompts (cooking recipes, car repairs, general trivia, weather).
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: Clear, immediate feedback when a prompt is off-topic, steering the user back to appliance maintenance.
-  * **Operations Manager Perspective**: Guarantees **0 API tokens** are consumed on non-refrigerator queries, completely eliminating cost leakage.
-  * **System Architect Perspective**: Employs a Pre-LLM Refrigerator Domain Guardrail (`is_out_of_domain` in `prompt_guard.py`) at the FastAPI gateway level to reject off-topic prompts with `HTTP 400 Bad Request` *before* LLM or vector database invocation.
+## Summary Matrix
+
+| Problem | Technician View | Ops View | Architecture |
+|---|---|---|---|
+| High MTTR | Readable cards + page citations | Faster resolution | RRF hybrid search (dense + BM25, k=60) |
+| Ticket overload | Interactive YES/NO cards | Fewer escalations | Stateful bounded workflow engine |
+| Hands-free field use | Voice button + neural TTS | Improved technician safety | Whisper + Sarvam AI + edge-tts |
+| Token cost leakage | Immediate off-topic feedback | Zero spend on rejected queries | Gateway pre-LLM guardrail |
+| Tool silos | All tools inside Claude Desktop | Unified AI standard | FastMCP server (stdio & SSE) |
+| Audit compliance | Clear SOP confirmations | Full ticket audit trail | SQLite session history |
 
 ---
 
-### 5. 🔌 Multi-System Interoperability & Tool Silos (MCP Standard)
-* **The Operational Problem**: Technicians use separate tools for manual searching, error code lookup, thermistor resistance testing, and OEM part verification.
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: Accesses all diagnostic tools natively inside **Claude Desktop** or IDEs without switching applications.
-  * **Operations Manager Perspective**: Standardizes maintenance intelligence across all enterprise desktop and mobile AI interfaces via open standards.
-  * **System Architect Perspective**: Implements a native FastMCP Server (`fridge_mcp_server.py`) exposing 6 diagnostic tools over **stdio** and **Server-Sent Events (SSE)** (`/mcp/sse`).
+## MCP Diagnostic Server (Claude Desktop & IDEs)
 
----
+`fridge_mcp_server.py` exposes 6 FastMCP tools:
 
-### 6. 📋 Audit Non-Compliance & SOP Execution Blind Spots
-* **The Operational Problem**: Lack of visibility into whether field technicians followed official Standard Operating Procedures (SOPs) or attempted unauthorized workarounds.
-* **How Octo RAG Solves It**:
-  * **Field Technician Perspective**: Clear verification prompts confirm each repair action was completed correctly.
-  * **Operations Manager Perspective**: Generates full audit logs recording questions asked, technician answers, recommended repair steps, and manual chunk citations.
-  * **System Architect Perspective**: Records all session state transitions in SQLite (`SessionStore`), preserving diagnostic history across multi-turn interactions.
+1. `search_fridge_manuals(query, source_file)` — grounded hybrid RRF search over Qdrant manuals.
+2. `lookup_error_code(brand, model, code)` — resolves codes (`Er FF`, `SY EF`, `22 E`, `E5`, `88 88`) to PCB test points and repair steps.
+3. `get_thermistor_ohm_table(temp_celsius)` — NTC thermistor resistance (kΩ) for multimeter diagnostics.
+4. `lookup_part_number(model, component_name)` — OEM part numbers (`WR51X10055`, `WR07X10055`, `WR57X10032`), voltages, difficulty.
+5. `run_octo_agent(query, source_input)` — full LangGraph `StateGraph` agentic pipeline (`agent_flow.py`).
+6. `troubleshoot_appliance_turn(session_id, message)` — full stateful troubleshooting engine (`workflow_manager.py`).
 
----
-
-## 📊 Summary Perspective Matrix
-
-| Operational Problem | Field Technician View | Operations Manager View | System Architect Solution |
-| :--- | :--- | :--- | :--- |
-| **High MTTR** | Readable 18px cards & page citations | 45m $\rightarrow$ <1m resolution | RRF Hybrid Search (Dense + BM25, $k=60$) |
-| **Ticket Overload** | Interactive `YES/NO` repair cards | 60% escalation reduction | Stateful Bounded Workflow Engine |
-| **Hands-Free Field** | Hero voice button & Neural TTS | Improved tech safety | Whisper + Sarvam AI + `edge-tts` |
-| **Token Cost Leakage**| Immediate topic feedback | **0 token cost** on off-topic prompts | Gateway Pre-LLM Guardrail (`is_out_of_domain`) |
-| **Tool Silos** | All tools inside Claude Desktop | Unified enterprise AI standard | FastMCP Server (stdio & SSE `/mcp/sse`) |
-| **Audit Compliance** | Clear SOP step confirmation | Full ticket audit trail | SQLite Session History Registry |
-
----
-
-## 🔌 FastMCP Server Capabilities (Claude Desktop & IDEs)
-
-Octo RAG exposes **6 FastMCP Tools** via [fridge_mcp_server.py](file:///c:/Users/SAMSUNG/OneDrive/Desktop/rag-multimodal-assistant/backend/app/mcp/fridge_mcp_server.py):
-
-1. **`search_fridge_manuals(query, source_file)`**: Performs grounded hybrid RRF search across Qdrant manuals.
-2. **`lookup_error_code(brand, model, code)`**: Resolves error codes (`Er FF`, `SY EF`, `22 E`, `E5`, `88 88`) to PCB test points and repair steps.
-3. **`get_thermistor_ohm_table(temp_celsius)`**: Calculates NTC thermistor resistance values (kOhm) for multimeter diagnostics.
-4. **`lookup_part_number(model, component_name)`**: Looks up OEM part numbers (`WR51X10055`, `WR07X10055`, `WR57X10032`), voltages, and difficulty levels.
-5. **`run_octo_agent(query, source_input)`**: Executes your full **LangGraph `StateGraph` agentic pipeline** (`agent_flow.py`).
-6. **`troubleshoot_appliance_turn(session_id, message)`**: Executes your full **Stateful Troubleshooting Engine** (`workflow_manager.py`).
-
-### Claude Desktop Setup
-Add the following to `%APPDATA%\Claude\claude_desktop_config.json`:
+**Claude Desktop setup** — add to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
 {
@@ -106,12 +102,12 @@ Add the following to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ---
 
-## 🏗️ System Architecture Overview
+## Architecture
 
 ```mermaid
 graph TD
     Client([Next.js Frontend UI / Claude Desktop / IDE]) --> API[FastAPI Backend / main.py]
-    
+
     subgraph Security Layer
         API --> RateLimiter[slowapi Rate Limiter]
         RateLimiter --> PromptGuard[Prompt Guard: Injection & Domain Boundary]
@@ -149,40 +145,58 @@ graph TD
 
 ---
 
-## ⚡ Multi-Tier Caching Matrix
+## Caching
 
-| Cache Layer | Storage Mechanism | Purpose | Benefit |
-| :--- | :--- | :--- | :--- |
-| **LRU Retrieval Cache** | In-memory Dict (`_RETRIEVAL_CACHE`, capacity=500) | Caches top RAG chunks by query key | Sub-5ms response time for repeated search queries |
-| **LRU Embedding Cache** | `@lru_cache(maxsize=1024)` in `EmbedderService` | Caches text vector encodings | Eliminates duplicate embedding CPU computation |
-| **SQLite Version Cache** | `registry.db` SQLite database table | Stores MD5 hashes of raw files & URLs | Skips re-chunking and re-embedding unchanged documents |
-| **Session State Cache** | `SessionStore` (SQLite / In-memory) | Stores multi-turn diagnostic history & state | Preserves troubleshooting context across user turns |
-| **ML Model Disk Cache** | Local Hugging Face Cache (`HF_HUB_OFFLINE=1`) | Stores local model weights on disk | Enables fast offline startup without downloading weights |
-
----
-
-## 🛡️ Security & Rate Limiting Rules
-
-All API routes are protected by **`slowapi` IP rate limiters**:
-
-| Endpoint | Method | Rate Limit | Protection Scope |
-| :--- | :--- | :--- | :--- |
-| `/upload` | `POST` | `5 / minute` | CPU & storage protection against rapid file upload spam |
-| `/agent/run` | `POST` | `10 / minute` | Limits complex LangGraph scraping and agent execution workflows |
-| `/transcribe` | `POST` | `10 / minute` | Prevents STT audio processing queue saturation |
-| `/chat` | `POST` | `20 / minute` | Rate limits standard RAG query generation |
-| `/troubleshoot`| `POST` | `20 / minute` | Limits state-guided diagnostic turns |
-| `/speak` | `POST` | `20 / minute` | Protects edge-tts text-to-speech generation |
-| `/chat/stream` | `POST` | `30 / minute` | Controls Server-Sent Events (SSE) streaming connections |
-| `/mcp/sse` | `GET` | Starlette/FastAPI | Streamable MCP Server-Sent Events endpoint |
-| `/document-images/...` | `GET` | `60 / minute` | Prevents automated document image scraping |
+| Layer | Storage | Purpose | Benefit |
+|---|---|---|---|
+| LRU Retrieval Cache | In-memory dict (`_RETRIEVAL_CACHE`, cap=500) | Caches top RAG chunks by query key | Fast repeated-query response |
+| LRU Embedding Cache | `@lru_cache(maxsize=1024)` in `EmbedderService` | Caches text vector encodings | Avoids duplicate embedding compute |
+| SQLite Version Cache | `registry.db` | MD5 hashes of raw files/URLs | Skips re-chunking unchanged docs |
+| Session State Cache | `SessionStore` (SQLite/in-memory) | Multi-turn diagnostic history | Preserves context across turns |
+| ML Model Disk Cache | HF cache (`HF_HUB_OFFLINE=1`) | Local model weights | Fast offline startup |
 
 ---
 
-## 🚀 Access Points & Quickstart
+## Security & Rate Limiting
 
-* **Frontend UI (Octo RAG Console)**: [http://localhost:3000](http://localhost:3000)
-* **Admin Upload Portal**: [http://localhost:3000/admin](http://localhost:3000/admin)
-* **Interactive API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-* **MCP SSE Endpoint**: `GET http://localhost:8000/mcp/sse`
-* **Test Suite Verification**: Run `python -m pytest` inside `backend/` (**42 / 42 passed**).
+`slowapi` IP-based limits per route:
+
+| Endpoint | Method | Limit | Scope |
+|---|---|---|---|
+| `/upload` | POST | 5/min | Upload spam protection |
+| `/agent/run` | POST | 10/min | LangGraph agent execution |
+| `/transcribe` | POST | 10/min | STT queue protection |
+| `/chat` | POST | 20/min | Standard RAG queries |
+| `/troubleshoot` | POST | 20/min | State-guided diagnostic turns |
+| `/speak` | POST | 20/min | TTS generation |
+| `/chat/stream` | POST | 30/min | SSE streaming |
+| `/mcp/sse` | GET | — | MCP SSE endpoint |
+| `/document-images/...` | GET | 60/min | Image scraping protection |
+
+---
+
+## Evaluation
+
+- Test suite: `python -m pytest` inside `backend/` — 42/42 passing.
+- Retrieval latency, escalation-reduction, and MTTR figures above reflect internal project benchmarks, not measured production traffic — validate against your own deployment before quoting externally.
+
+---
+
+## Quickstart
+
+- Frontend: `http://localhost:3000`
+- Admin upload portal: `http://localhost:3000/admin`
+- API docs (Swagger): `http://localhost:8000/docs`
+- MCP SSE endpoint: `GET http://localhost:8000/mcp/sse`
+
+---
+
+## Author
+
+**Santhosh Paramasivan**
+AI Engineer — AI Infrastructure, Multimodal RAG, Agentic Systems, MCP
+
+- GitHub: [`Santhosh-p653`](https://github.com/Santhosh-p653)
+- LinkedIn: *(https://www.linkedin.com/in/santhosh-paramasivan)*
+- Portfolio: *(https://santhosh-p653.github.io/portfolio/)*
+
