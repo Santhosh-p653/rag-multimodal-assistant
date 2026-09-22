@@ -5,7 +5,7 @@ and decides workflow escalations based on manual context and conversation logs.
 """
 import json
 from typing import Dict, Any, List
-from app.config import LLM_PROVIDER, GROQ_API_KEY, SAMBANOVA_API_KEY, LLM_MODEL
+from app.config import LLM_PROVIDER, GROQ_API_KEY, SAMBANOVA_API_KEY, LLM_MODEL, settings
 from app.services.llm_provider import generate
 
 
@@ -92,7 +92,7 @@ async def diagnose_and_propose(
     history: List[Dict[str, str]],
     last_message: str
 ) -> Dict[str, Any]:
-    if LLM_PROVIDER == "none":
+    if LLM_PROVIDER == "none" and not getattr(settings, "OLLAMA_ENABLED", False):
         return fallback_reasoning("", history, last_message)
 
     context_text = "\n\n".join(
@@ -120,7 +120,7 @@ Dialogue Logs:
 {dialogue_log}
 """
 
-    if LLM_PROVIDER == "none":
+    if LLM_PROVIDER == "none" and not getattr(settings, "OLLAMA_ENABLED", False):
         return fallback_reasoning(context_text, history, last_message)
 
     try:

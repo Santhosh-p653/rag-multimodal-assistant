@@ -10,7 +10,7 @@ from typing import Optional
 from app.services.parser import ParserService
 from app.services.retriever import retrieve_context
 from app.services.prompt_builder import build_prompt
-from app.config import LLM_PROVIDER, LLM_MODEL, GROQ_API_KEY, SAMBANOVA_API_KEY
+from app.config import settings, LLM_PROVIDER, LLM_MODEL, GROQ_API_KEY, SAMBANOVA_API_KEY
 from app.services.prompt_guard import is_prompt_injection, is_out_of_domain
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -18,6 +18,9 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from contextlib import asynccontextmanager
+import logging
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -141,22 +144,143 @@ def health_llm():
 
 @app.get("/files")
 def get_files():
-    """Retrieve all unique source files loaded in the vector store."""
+    """Retrieve all unique source files loaded in storage and vector store."""
     from app.services.vector_store import VectorStoreService
+    from pathlib import Path
     vs = VectorStoreService()
     try:
-        files = vs.get_unique_sources()
-        return {"files": files}
+        sources = set(vs.get_unique_sources())
+        input_dir = Path(settings.INPUT_DIR)
+        if input_dir.exists():
+            for f in input_dir.iterdir():
+                if f.is_file() and not f.name.startswith("."):
+                    sources.add(f.name)
+        return {"files": sorted(list(sources))}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
+
+@app.delete("/files/{filename}")
+def delete_file(filename: str):
+    """
+    Delete a manual completely:
+    1. Remove raw file from input_manuals/
+    2. Remove processed markdown from processed_markdown/
+    3. Remove extracted figures/images from processed_markdown/images/{base_name}
+    4. Remove vector embeddings from Qdrant 'manuals' collection
+    5. Remove image embeddings from Qdrant 'manual_images' collection
+    6. Remove entry from SQLite registry.db
+    """
+    import os
+    import shutil
+    import sqlite3
+    from pathlib import Path
+    from app.services.vector_store import VectorStoreService
+
+    safe_filename = os.path.basename(filename)
+    if not safe_filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    base_name, _ = os.path.splitext(safe_filename)
+
+    # 1. Remove raw file
+    raw_path = Path(settings.INPUT_DIR) / safe_filename
+    if raw_path.exists():
+        try:
+            raw_path.unlink()
+        except Exception as e:
+            logger.error(f"Error removing raw file {raw_path}: {e}")
+
+    # 2. Remove markdown file
+    md_path = Path(settings.OUTPUT_DIR) / f"{base_name}.md"
+    if md_path.exists():
+        try:
+            md_path.unlink()
+        except Exception as e:
+            logger.error(f"Error removing markdown file {md_path}: {e}")
+
+    # 3. Remove extracted images folder
+    images_dir = Path(settings.OUTPUT_DIR) / "images" / base_name
+    if images_dir.exists():
+        try:
+            shutil.rmtree(images_dir, ignore_errors=True)
+        except Exception as e:
+            logger.error(f"Error removing images dir {images_dir}: {e}")
+
+    # 4. Remove vectors from Qdrant
+    vs = VectorStoreService()
+    try:
+        vs.delete_by_filename(safe_filename)
+        vs.delete_images_by_filename(safe_filename)
+    except Exception as e:
+        logger.error(f"Error deleting vectors for {safe_filename}: {e}")
+
+    # 5. Remove from registry.db
+    reg_path = Path(settings.INPUT_DIR).parent / "registry.db"
+    if reg_path.exists():
+        try:
+            conn = sqlite3.connect(str(reg_path))
+            c = conn.cursor()
+            c.execute("DELETE FROM registry WHERE filepath = ? OR filepath = ?", (safe_filename, f"{base_name}.md"))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error clearing registry for {safe_filename}: {e}")
+
+    try:
+        from app.services.retriever import clear_retrieval_cache
+        clear_retrieval_cache()
+    except Exception:
+        pass
+
+    return {"status": "deleted", "filename": safe_filename}
+
+
+@app.post("/admin/reset")
+def reset_all_manuals():
+    """Wipe all manuals, markdown, extracted images, Qdrant vectors, and registry."""
+    import shutil
+    import sqlite3
+    from pathlib import Path
+    from app.services.vector_store import VectorStoreService
+
+    input_dir = Path(settings.INPUT_DIR)
+    if input_dir.exists():
+        for f in input_dir.iterdir():
+            if f.is_file():
+                f.unlink()
+
+    output_dir = Path(settings.OUTPUT_DIR)
+    if output_dir.exists():
+        for item in output_dir.iterdir():
+            if item.is_file():
+                item.unlink()
+            elif item.is_dir() and item.name == "images":
+                shutil.rmtree(item, ignore_errors=True)
+
+    vs = VectorStoreService()
+    vs.clear_all()
+
+    reg_path = Path(settings.INPUT_DIR).parent / "registry.db"
+    if reg_path.exists():
+        conn = sqlite3.connect(str(reg_path))
+        c = conn.cursor()
+        c.execute("DELETE FROM registry")
+        conn.commit()
+        conn.close()
+
+    return {"status": "ok", "message": "All manuals and index data successfully wiped."}
+
 @app.get("/debug_qdrant")
 def debug_qdrant():
-    from app.services.vector_store import VectorStoreService
+    from app.services.vector_store import VectorStoreService, QDRANT_COLLECTION
     vs = VectorStoreService()
-    chunks = vs.get_all_chunks(source_file="test1.pdf")
-    has_images = [c for c in chunks if c.get("image_ids")]
-    return {"total": len(chunks), "with_images": len(has_images), "sample": has_images[0] if has_images else None}
+    res, _ = vs.client.scroll(collection_name=QDRANT_COLLECTION, limit=500, with_payload=True)
+    sources = {}
+    for p in res:
+        sf = p.payload.get("source_file") or p.payload.get("source") or "unknown"
+        sources[sf] = sources.get(sf, 0) + 1
+    return {"total": len(res), "sources_count": sources}
 
 
 @app.get("/products")
@@ -305,8 +429,9 @@ async def chat(payload: ChatRequest, request: Request):
         prompt = build_prompt(chunks, payload.message)
 
     # Step 5: Call LLM
+    from starlette.concurrency import run_in_threadpool
     try:
-        answer = call_llm(prompt, task="chat")
+        answer = await run_in_threadpool(call_llm, prompt, task="chat")
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -368,7 +493,7 @@ async def chat_stream(request: Request, payload: ChatRequest):
 
 
 @app.post("/upload", response_model=UploadResponse)
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 async def upload_file(request: Request, file: UploadFile = File(...)):
     """Upload a document, convert it, chunk it, embed it, and store in Qdrant."""
     if not file.filename:
@@ -412,6 +537,23 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
     try:
         result = parser_service.parse_file(file.filename, content)
+
+        # Sync SQLite registry with ingested file hash
+        try:
+            import hashlib
+            import sqlite3
+            from pathlib import Path
+            reg_path = Path(settings.INPUT_DIR).parent / "registry.db"
+            if reg_path.exists():
+                content_hash = hashlib.md5(content, usedforsecurity=False).hexdigest()
+                conn = sqlite3.connect(str(reg_path))
+                c = conn.cursor()
+                c.execute("INSERT OR REPLACE INTO registry (filepath, hash, version) VALUES (?, ?, 1)", (file.filename, content_hash))
+                conn.commit()
+                conn.close()
+        except Exception as reg_err:
+            logger.warning(f"Failed to update registry for {file.filename}: {reg_err}")
+
         return UploadResponse(
             filename=file.filename,
             markdown_file=result["markdown_file"],
@@ -423,7 +565,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
 
 
 @app.post("/transcribe")
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def transcribe(
     request: Request,
     audio: UploadFile = File(...),
@@ -433,10 +575,15 @@ async def transcribe(
     import tempfile
     import os
 
+    content = await audio.read()
+    if not content or len(content) < 50:
+        return {"text": "", "detected_language": hint_lang}
+
     # Write to a temporary file
     suffix = os.path.splitext(audio.filename or ".wav")[1] or ".wav"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await audio.read())
+        tmp.write(content)
+        tmp.flush()
         tmp_path = tmp.name
 
     try:
@@ -444,10 +591,14 @@ async def transcribe(
         result = await transcribe_audio(tmp_path, hint_lang)
         return result
     except Exception as e:
+        logger.error(f"[Audio] Transcription failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 
 @app.get("/document-images/{document_id}/{image_id}")
@@ -580,9 +731,10 @@ async def agent_run(payload: AgentRequest, request: Request):
     }
     
     from app.services.agent_flow import agent_graph
+    from starlette.concurrency import run_in_threadpool
     try:
-        # Run graph synchronously
-        result = agent_graph.invoke(inputs)
+        # Run synchronous LangGraph execution in worker threadpool to avoid blocking event loop
+        result = await run_in_threadpool(agent_graph.invoke, inputs)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow execution failed: {str(e)}")

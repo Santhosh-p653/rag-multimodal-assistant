@@ -10,7 +10,6 @@ import {
   Globe,
   SlidersHorizontal,
   RefreshCw,
-  Type,
   History,
   Plus
 } from "lucide-react";
@@ -85,6 +84,17 @@ export default function Home() {
       localStorage.setItem("octo_user_id", uid);
     }
     setUserId(uid);
+
+    // One-time clean slate reset of legacy chat sessions so the website starts completely fresh
+    const cleanKey = "octo_clean_fresh_slate_v4";
+    if (!localStorage.getItem(cleanKey)) {
+      localStorage.removeItem(`octo_chat_sessions_${uid}`);
+      localStorage.removeItem(`octo_active_session_id_${uid}`);
+      localStorage.setItem(cleanKey, "true");
+      setSessions([]);
+      setMessages([]);
+      return;
+    }
 
     const savedRaw = localStorage.getItem(`octo_chat_sessions_${uid}`);
     let parsedSessions: StoredSession[] = [];
@@ -419,8 +429,20 @@ export default function Home() {
       {/* ── Top Header ─────────────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-octo-border sticky top-0 z-30 shadow-sm">
         <div className="max-w-[1100px] mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Brand Name & History Action */}
+          {/* Logo & Identity (Anchored to Top-Left Corner) */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/" onClick={handleNewChat} className="flex items-center gap-2 group">
+              <span className="text-xl font-bold tracking-tight text-octo-charcoal">
+                OCTO <span className="text-octo-orange">RAG</span>
+              </span>
+            </Link>
+
+            {/* System Status Indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-octo-surface-warm border border-octo-border text-octo-charcoal font-medium">
+              <span className={`h-2 w-2 rounded-full ${backendOnline ? "bg-emerald-600" : "bg-amber-500 animate-pulse"}`} />
+              <span>{backendOnline ? "System ready" : "Connecting..."}</span>
+            </div>
+
             {/* History Toggle Button */}
             <button
               onClick={() => setIsHistoryOpen(true)}
@@ -445,18 +467,6 @@ export default function Home() {
               <Plus className="h-3.5 w-3.5 text-octo-orange" />
               <span className="hidden sm:inline">New</span>
             </button>
-
-            <Link href="/" onClick={handleNewChat} className="flex items-center gap-2 group ml-1">
-              <span className="text-xl font-bold tracking-tight text-octo-charcoal">
-                OCTO <span className="text-octo-orange">RAG</span>
-              </span>
-            </Link>
-
-            {/* System Status Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-octo-surface-warm border border-octo-border text-octo-charcoal font-medium">
-              <span className={`h-2 w-2 rounded-full ${backendOnline ? "bg-emerald-600" : "bg-amber-500 animate-pulse"}`} />
-              <span>{backendOnline ? "System ready" : "Connecting..."}</span>
-            </div>
           </div>
 
           {/* Top Controls */}
@@ -482,21 +492,6 @@ export default function Home() {
                 </select>
               </div>
             )}
-
-            {/* Accessibility Text Size Selector */}
-            <div className="hidden sm:flex items-center gap-1 text-xs text-octo-muted border-l border-octo-border pl-3">
-              <Type className="h-3.5 w-3.5 text-octo-muted" />
-              <select
-                value={textSize}
-                onChange={(e) => handleTextSizeChange(e.target.value as any)}
-                className="bg-transparent border-none text-xs text-octo-charcoal font-medium focus:outline-none cursor-pointer"
-                title="Adjust font readability size"
-              >
-                <option value="standard">A Standard</option>
-                <option value="large">A+ Large</option>
-                <option value="xl">A++ Extra Large</option>
-              </select>
-            </div>
 
             {/* Language Selector */}
             <div className="flex items-center gap-1 text-xs text-octo-muted border-l border-octo-border pl-3">
@@ -530,15 +525,6 @@ export default function Home() {
             >
               {!isMuted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </button>
-
-            {/* Link to Admin / Manuals Portal */}
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn bg-white border border-octo-border text-xs font-semibold text-octo-charcoal hover:bg-octo-surface-warm transition-colors shadow-sm"
-            >
-              <FileText className="h-4 w-4 text-octo-orange" />
-              <span className="hidden sm:inline">My Manuals</span>
-            </Link>
           </div>
         </div>
       </header>

@@ -54,3 +54,20 @@ def test_api_chat(mock_llm, mock_retrieve, mock_understand):
     assert response.status_code == 200
     assert "power checks" in response.json()["answer"]
     assert "manual.pdf" in response.json()["sources"]
+
+
+def test_get_and_delete_files():
+    with patch("app.services.vector_store.VectorStoreService") as mock_vs:
+        mock_vs.return_value.get_unique_sources.return_value = ["test_sample.pdf"]
+        
+        # Test listing files
+        res = client.get("/files")
+        assert res.status_code == 200
+        assert "files" in res.json()
+        assert "test_sample.pdf" in res.json()["files"]
+
+        # Test deleting file
+        del_res = client.delete("/files/test_sample.pdf")
+        assert del_res.status_code == 200
+        assert del_res.json()["status"] == "deleted"
+        assert del_res.json()["filename"] == "test_sample.pdf"

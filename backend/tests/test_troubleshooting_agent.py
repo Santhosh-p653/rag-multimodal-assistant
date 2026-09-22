@@ -9,9 +9,11 @@ from app.services.troubleshooting_agent import diagnose_and_propose
 
 
 def test_troubleshooting_agent_logic():
+    from app.config import settings
     async def run_test():
-        # Test fallback diagnostic question when no history is present
-        with patch("app.services.troubleshooting_agent.LLM_PROVIDER", "none"):
+        # Test fallback diagnostic question when no history is present and LLMs disabled
+        with patch.object(settings, "OLLAMA_ENABLED", False), \
+             patch("app.services.troubleshooting_agent.LLM_PROVIDER", "none"):
             res = await diagnose_and_propose(
                 context_chunks=[],
                 history=[],

@@ -32,7 +32,10 @@ class VectorStoreService:
                 cls._instance.client = QdrantClient(path=db_path)
                 print(f"[VectorStore] Persistent Qdrant client initialized at: {db_path}")
 
-            cls._instance._collection_ready = False
+            try:
+                cls._instance._collection_ready = cls._instance.client.collection_exists(QDRANT_COLLECTION)
+            except Exception:
+                cls._instance._collection_ready = False
             cls._instance._vector_size = None
         return cls._instance
 
@@ -88,6 +91,31 @@ class VectorStoreService:
         self.client.upsert(collection_name=QDRANT_COLLECTION, points=points)
         print(f"[VectorStore] Ingested {len(points)} chunks from '{chunks[0]['source_file']}' with metadata.")
 
+    def has_source(self, source_file: str) -> bool:
+        """Check if any chunks from this source_file exist in Qdrant."""
+        if not self._collection_ready:
+            try:
+                if self.client.collection_exists(QDRANT_COLLECTION):
+                    self._collection_ready = True
+                else:
+                    return False
+            except Exception:
+                return False
+
+        try:
+            sf_condition = FieldCondition(
+                key="source_file",
+                match=MatchValue(value=source_file),
+            )
+            count_res = self.client.count(
+                collection_name=QDRANT_COLLECTION,
+                count_filter=Filter(must=[sf_condition]),
+                exact=False,
+            )
+            return count_res.count > 0
+        except Exception:
+            return False
+
     def search(
         self, 
         query_vector: list[float], 
@@ -99,7 +127,13 @@ class VectorStoreService:
         Search the collection and return top-K results.
         """
         if not self._collection_ready:
-            return []
+            try:
+                if self.client.collection_exists(QDRANT_COLLECTION):
+                    self._collection_ready = True
+                else:
+                    return []
+            except Exception:
+                return []
 
         if source_file:
             sf_condition = FieldCondition(
@@ -126,7 +160,13 @@ class VectorStoreService:
         Retrieve all chunks from Qdrant, optionally filtered.
         """
         if not self._collection_ready:
-            return []
+            try:
+                if self.client.collection_exists(QDRANT_COLLECTION):
+                    self._collection_ready = True
+                else:
+                    return []
+            except Exception:
+                return []
 
         if source_file:
             sf_condition = FieldCondition(
@@ -183,7 +223,7 @@ class VectorStoreService:
 
     def delete_by_filename(self, filename: str):
         """Delete all points associated with a specific source filename from the Qdrant database."""
-        if not self._collection_ready:
+        if not self.client.collection_exists(QDRANT_COLLECTION):
             return
         self.client.delete(
             collection_name=QDRANT_COLLECTION,
@@ -198,9 +238,19 @@ class VectorStoreService:
         )
         print(f"[VectorStore] Deleted existing chunks for file: {filename}")
 
+    def clear_all(self):
+        """Delete all collections in Qdrant so no stale data remains."""
+        if self.client.collection_exists(QDRANT_COLLECTION):
+            self.client.delete_collection(QDRANT_COLLECTION)
+            print(f"[VectorStore] Deleted collection '{QDRANT_COLLECTION}'")
+        if self.client.collection_exists(VISION_COLLECTION):
+            self.client.delete_collection(VISION_COLLECTION)
+            print(f"[VectorStore] Deleted collection '{VISION_COLLECTION}'")
+        self._collection_ready = False
+
     def count(self) -> int:
         """Return total number of vectors stored."""
-        if not self._collection_ready:
+        if not self.client.collection_exists(QDRANT_COLLECTION):
             return 0
         return self.client.count(collection_name=QDRANT_COLLECTION).count
 

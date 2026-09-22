@@ -11,7 +11,11 @@ from typing import Optional, Dict, Any, Tuple
 import httpx
 import edge_tts
 from langdetect import detect
-from app.config import SARVAM_API_KEY
+from app.config import SARVAM_API_KEY, settings
+
+# Ensure current environment value is loaded if available
+if not SARVAM_API_KEY:
+    SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 
 VOICE_TABLE = {
     "en": "en-IN-NeerjaNeural",
@@ -93,24 +97,33 @@ async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
 
     try:
         if hint_lang == "en":
-            model = get_whisper_model()
-            segments, info = model.transcribe(transcoded_path, beam_size=5)
-            text = " ".join([s.text for s in segments]).strip()
-            return {"text": text, "detected_language": info.language}
+            try:
+                model = get_whisper_model()
+                segments, info = model.transcribe(transcoded_path, beam_size=5)
+                text = " ".join([s.text for s in segments]).strip()
+                return {"text": text, "detected_language": info.language}
+            except Exception as w_err:
+                active_sarvam_key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY", "")
+                if not active_sarvam_key:
+                    raise w_err
+                # Fall back to Sarvam en-IN
+                hint_lang = "en"
 
-        if not SARVAM_API_KEY:
+        active_key = SARVAM_API_KEY
+        if not active_key:
             raise RuntimeError("SARVAM_API_KEY not configured")
 
         sarvam_lang = SARVAM_LANG_MAP.get(hint_lang, "unknown")
 
         async with httpx.AsyncClient() as client:
             with open(transcoded_path, "rb") as audio_file:
+                audio_content = audio_file.read()
                 response = await client.post(
                     "https://api.sarvam.ai/speech-to-text",
                     files={
                         "file": (
                             os.path.basename(transcoded_path),
-                            audio_file,
+                            audio_content,
                             "audio/wav"
                         )
                     },
@@ -119,7 +132,7 @@ async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
                         "mode": "transcribe",
                         "language_code": sarvam_lang,
                     },
-                    headers={"api-subscription-key": SARVAM_API_KEY},
+                    headers={"api-subscription-key": active_key},
                     timeout=30.0,
                 )
 
@@ -130,7 +143,10 @@ async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
         transcript = res_data.get("transcript", "")
 
         detected_lang = hint_lang
-        if hint_lang == "auto" and transcript:
+        sarvam_code = res_data.get("language_code")
+        if sarvam_code and sarvam_code != "unknown":
+            detected_lang = sarvam_code.split("-")[0].lower()
+        elif hint_lang == "auto" and transcript:
             try:
                 detected_lang = detect(transcript)
             except Exception:
@@ -143,7 +159,10 @@ async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
 
     finally:
         if os.path.exists(transcoded_path):
-            os.remove(transcoded_path)
+            try:
+                os.remove(transcoded_path)
+            except Exception:
+                pass
 
 
 import base64
@@ -263,14 +282,15 @@ async def speak_text(text: str, language: Optional[str] = None) -> tuple[bytes, 
     lang_key = target_lang.split("-")[0].lower()
 
     # 1. Attempt Sarvam AI Text-to-Speech for supported Indian languages
-    if SARVAM_API_KEY and lang_key in INDIC_LANGUAGES and lang_key in SARVAM_LANG_MAP:
+    active_key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY", "")
+    if active_key and lang_key in INDIC_LANGUAGES and lang_key in SARVAM_LANG_MAP:
         sarvam_code = SARVAM_LANG_MAP.get(lang_key)
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 res = await client.post(
                     "https://api.sarvam.ai/text-to-speech",
                     headers={
-                        "api-subscription-key": SARVAM_API_KEY,
+                        "api-subscription-key": active_key,
                         "Content-Type": "application/json",
                     },
                     json={
