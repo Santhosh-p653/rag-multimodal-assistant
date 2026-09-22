@@ -91,6 +91,22 @@ class ParserService:
         # 4. Chunk the markdown
         chunks = chunk_markdown(md_content, source_file=filename, metadata=metadata)
 
+        # 4.5 Map chunks to page numbers if PDF
+        if ext.lower() == ".pdf" and os.path.exists(raw_path):
+            try:
+                import fitz
+                doc = fitz.open(raw_path)
+                page_texts = [(idx + 1, " ".join(page.get_text().lower().split())) for idx, page in enumerate(doc)]
+                for chunk in chunks:
+                    chunk_clean = " ".join(chunk["content"].lower().split())
+                    snip = chunk_clean[:60]
+                    for p_num, p_txt in page_texts:
+                        if snip in p_txt:
+                            chunk["page"] = p_num
+                            break
+            except Exception as pe:
+                print(f"[ParserService] Page mapping notice: {pe}")
+
         # 5. Embed all chunks in one batch for efficiency
         texts = [chunk["content"] for chunk in chunks]
         embeddings = self.embedder.embed_batch(texts)

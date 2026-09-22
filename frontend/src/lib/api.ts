@@ -81,6 +81,20 @@ export async function fetchFiles(): Promise<string[]> {
 }
 
 /**
+ * Deletes a manual and its search index from the backend.
+ */
+export async function deleteFile(filename: string): Promise<{ status: string; filename: string }> {
+  const response = await fetch(`${API_URL}/files/${encodeURIComponent(filename)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to delete ${filename}`);
+  }
+  return response.json();
+}
+
+/**
  * Uploads a document with real-time progress tracking via XMLHttpRequest.
  */
 export function uploadDocument(
@@ -131,7 +145,12 @@ export async function transcribeAudio(
   hintLang: string
 ): Promise<{ text: string; detected_language: string }> {
   const formData = new FormData();
-  formData.append("audio", audioBlob, "query.wav");
+  const ext = audioBlob.type?.includes("webm")
+    ? "webm"
+    : audioBlob.type?.includes("ogg")
+    ? "ogg"
+    : "wav";
+  formData.append("audio", audioBlob, `query.${ext}`);
   formData.append("hint_lang", hintLang);
 
   const response = await fetch(`${API_URL}/transcribe`, {

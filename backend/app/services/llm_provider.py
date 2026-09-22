@@ -41,6 +41,7 @@ class LLMProvider:
         self.last_model_used: str = ""
         self.last_task_used: str = ""
         self.last_error: Optional[str] = None
+        self.last_fallback_reason: Optional[str] = None
         self.total_requests: int = 0
         self.ollama_served: int = 0
         self.cloud_fallback_served: int = 0
@@ -49,10 +50,12 @@ class LLMProvider:
         if override_model:
             return override_model
         task_normalized = (task or "chat").lower().strip()
-        if task_normalized == "classification":
+        if task_normalized in ("classification", "product_id", "classify"):
             return settings.OLLAMA_MODEL_CLASSIFICATION
-        elif task_normalized == "workflow":
+        elif task_normalized in ("workflow", "troubleshoot", "troubleshooting", "diagnose"):
             return settings.OLLAMA_MODEL_WORKFLOW
+        elif task_normalized in ("caption", "captioning", "vision", "image", "image_caption"):
+            return getattr(settings, "OLLAMA_MODEL_CAPTION", "gemma3:4b")
         else:
             return settings.OLLAMA_MODEL_CHAT
 
@@ -64,21 +67,30 @@ class LLMProvider:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         model: Optional[str] = None,
+        images: Optional[list] = None,
         **kwargs: Any,
     ) -> str:
         """
         Unified LLM generation function.
-        Tries local Ollama first. On any failure, falls back to Groq or SambaNova.
+        Tries local Ollama first with task-specific models:
+          - classification -> qwen2.5:3b
+          - chat           -> llama3.2:3b / gemma3:4b
+          - workflow       -> llama3.2:3b
+          - caption/vision -> gemma3:4b
+        On any failure, falls back automatically to Groq or SambaNova.
+        Logs which provider actually served the call and the reason for any fallback.
         """
         self.total_requests += 1
         self.last_task_used = task
+
+        logger.info(f"[LLMProvider] New request for task='{task}' (prompt prefix: {prompt[:60]!r}...)")
 
         # ─── 1. Attempt Primary: Local Ollama ──────────────────────────────
         if settings.OLLAMA_ENABLED and self.ollama_enabled:
             ollama_model = self._get_ollama_model_for_task(task, override_model=model)
             try:
-                # Use connection timeout to fail fast if Ollama service is not running
-                connect_timeout = float(settings.OLLAMA_TIMEOUT_SECONDS)
+                # Fast connect timeout (max 5s) to fail fast if Ollama service is not running
+                connect_timeout = min(5.0, float(settings.OLLAMA_TIMEOUT_SECONDS))
                 read_timeout = float(getattr(settings, "OLLAMA_READ_TIMEOUT_SECONDS", 180.0))
                 client_timeout = httpx.Timeout(read_timeout, connect=connect_timeout)
 
@@ -90,18 +102,24 @@ class LLMProvider:
                 messages = []
                 if system_prompt:
                     messages.append({"role": "system", "content": system_prompt})
-                messages.append({"role": "user", "content": prompt})
 
-                options: Dict[str, Any] = {}
-                if temperature is not None:
-                    options["temperature"] = float(temperature)
-                if max_tokens is not None:
-                    options["num_predict"] = int(max_tokens)
+                user_msg: Dict[str, Any] = {"role": "user", "content": prompt}
+                # Support vision/image input for multimodal models like gemma3:4b
+                img_list = images or kwargs.get("images")
+                if img_list:
+                    user_msg["images"] = img_list
+                messages.append(user_msg)
 
+                options: Dict[str, Any] = {
+                    "num_predict": int(max_tokens) if max_tokens is not None else 1024,
+                    "temperature": float(temperature) if temperature is not None else 0.2,
+                }
+
+                logger.info(f"[LLMProvider] Attempting local Ollama: model='{ollama_model}', task='{task}'")
                 response = client.chat(
                     model=ollama_model,
                     messages=messages,
-                    options=options if options else None,
+                    options=options,
                 )
 
                 content = response.get("message", {}).get("content", "").strip()
@@ -109,18 +127,26 @@ class LLMProvider:
                     self.last_provider_used = "ollama"
                     self.last_model_used = ollama_model
                     self.last_error = None
+                    self.last_fallback_reason = None
                     self.ollama_served += 1
+                    logger.info(f"[LLMProvider] SERVED BY OLLAMA: model='{ollama_model}', task='{task}' ({len(content)} chars)")
+                    print(f"[LLMProvider] SERVED BY OLLAMA: model='{ollama_model}', task='{task}' ({len(content)} chars)")
                     return content
                 else:
-                    logger.warning("[LLMProvider] Ollama returned empty response, falling back...")
+                    self.last_fallback_reason = f"Ollama model {ollama_model} returned empty response"
+                    logger.warning(f"[LLMProvider] {self.last_fallback_reason}, falling back...")
+                    print(f"[LLMProvider] {self.last_fallback_reason}, falling back...")
             except Exception as exc:
                 self.last_error = str(exc)
+                self.last_fallback_reason = f"Ollama ({ollama_model}) failed: {exc}"
                 logger.warning(
-                    "[LLMProvider] Ollama unavailable (%s), falling back to cloud provider: %s",
+                    "[LLMProvider] FALLBACK TRIGGERED from Ollama (%s) to cloud: %s",
                     ollama_model,
                     exc,
                 )
+                print(f"[LLMProvider] FALLBACK TRIGGERED from Ollama ({ollama_model}) to cloud: {exc}")
         else:
+            self.last_fallback_reason = "Ollama disabled by configuration"
             logger.debug("[LLMProvider] Ollama disabled by configuration, routing to cloud.")
 
         # ─── 2. Automatic Cloud Fallback (Groq / SambaNova) ─────────────────
@@ -137,18 +163,24 @@ class LLMProvider:
                 from groq import Groq
 
                 client = Groq(api_key=settings.GROQ_API_KEY)
+                effective_model = cloud_model or "groq/compound-mini"
+                logger.info(f"[LLMProvider] Attempting Groq cloud fallback: model='{effective_model}', task='{task}'")
                 response = client.chat.completions.create(
-                    model=cloud_model or "groq/compound-mini",
+                    model=effective_model,
                     messages=messages,
                     temperature=temperature if temperature is not None else 0.2,
                     max_tokens=max_tokens if max_tokens is not None else 1024,
                 )
+                content = response.choices[0].message.content.strip()
                 self.last_provider_used = "groq"
-                self.last_model_used = cloud_model
+                self.last_model_used = effective_model
                 self.cloud_fallback_served += 1
-                return response.choices[0].message.content.strip()
+                logger.info(f"[LLMProvider] SERVED BY GROQ FALLBACK: model='{effective_model}', task='{task}' ({len(content)} chars)")
+                print(f"[LLMProvider] SERVED BY GROQ FALLBACK: model='{effective_model}', task='{task}' ({len(content)} chars)")
+                return content
             except Exception as exc:
                 logger.exception("[LLMProvider] Groq cloud fallback failed: %s", exc)
+                print(f"[LLMProvider] Groq cloud fallback failed: {exc}")
                 raise
 
         elif cloud_provider == "sambanova":
@@ -159,18 +191,24 @@ class LLMProvider:
                     api_key=settings.SAMBANOVA_API_KEY,
                     base_url="https://api.sambanova.ai/v1",
                 )
+                effective_model = cloud_model or "Meta-Llama-3.1-8B-Instruct"
+                logger.info(f"[LLMProvider] Attempting SambaNova cloud fallback: model='{effective_model}', task='{task}'")
                 response = client.chat.completions.create(
-                    model=cloud_model or "Meta-Llama-3.1-8B-Instruct",
+                    model=effective_model,
                     messages=messages,
                     temperature=temperature if temperature is not None else 0.2,
                     max_tokens=max_tokens if max_tokens is not None else 1024,
                 )
+                content = response.choices[0].message.content.strip()
                 self.last_provider_used = "sambanova"
-                self.last_model_used = cloud_model
+                self.last_model_used = effective_model
                 self.cloud_fallback_served += 1
-                return response.choices[0].message.content.strip()
+                logger.info(f"[LLMProvider] SERVED BY SAMBANOVA FALLBACK: model='{effective_model}', task='{task}' ({len(content)} chars)")
+                print(f"[LLMProvider] SERVED BY SAMBANOVA FALLBACK: model='{effective_model}', task='{task}' ({len(content)} chars)")
+                return content
             except Exception as exc:
                 logger.exception("[LLMProvider] SambaNova cloud fallback failed: %s", exc)
+                print(f"[LLMProvider] SambaNova cloud fallback failed: {exc}")
                 raise
 
         # No provider available
@@ -179,7 +217,8 @@ class LLMProvider:
             f"({self.last_error or 'disabled'}), and no valid cloud API key "
             "(GROQ_API_KEY or SAMBANOVA_API_KEY) is configured."
         )
-        logger.error(err_msg)
+        logger.error(f"[LLMProvider] {err_msg}")
+        print(f"[LLMProvider] {err_msg}")
         raise RuntimeError(err_msg)
 
     def get_status(self) -> Dict[str, Any]:
@@ -207,10 +246,12 @@ class LLMProvider:
             "last_model_used": self.last_model_used,
             "last_task": self.last_task_used,
             "last_error": self.last_error,
+            "last_fallback_reason": self.last_fallback_reason,
             "task_models": {
                 "classification": settings.OLLAMA_MODEL_CLASSIFICATION,
                 "chat": settings.OLLAMA_MODEL_CHAT,
                 "workflow": settings.OLLAMA_MODEL_WORKFLOW,
+                "caption": getattr(settings, "OLLAMA_MODEL_CAPTION", "gemma3:4b"),
             },
             "stats": {
                 "total_requests": self.total_requests,
@@ -231,6 +272,7 @@ def generate(
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
     model: Optional[str] = None,
+    images: Optional[list] = None,
     **kwargs: Any,
 ) -> str:
     """Convenience module-level interface for unified LLM calls."""
@@ -241,5 +283,6 @@ def generate(
         temperature=temperature,
         max_tokens=max_tokens,
         model=model,
+        images=images,
         **kwargs,
     )

@@ -82,7 +82,7 @@ def identify_product_fallback(text: str) -> Dict[str, Any]:
 
 def identify_product_llm(text: str) -> Optional[Dict[str, Any]]:
     """Call the LLM provider to perform zero-shot structured metadata extraction."""
-    if LLM_PROVIDER == "none":
+    if LLM_PROVIDER == "none" and not getattr(settings, "OLLAMA_ENABLED", False):
         return None
 
     prompt = f"""You are a technical support metadata extractor.
@@ -115,7 +115,7 @@ Text to analyze:
 "{text}"
 """
 
-    if LLM_PROVIDER == "none":
+    if LLM_PROVIDER == "none" and not getattr(settings, "OLLAMA_ENABLED", False):
         return None
 
     try:

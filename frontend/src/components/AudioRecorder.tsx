@@ -37,14 +37,17 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        onRecordingComplete(audioBlob);
+        const mime = mediaRecorder.mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
+        if (audioBlob.size > 0) {
+          onRecordingComplete(audioBlob);
+        }
 
         // Stop all audio tracks in stream to release microphone
         stream.getTracks().forEach((track) => track.stop());
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(250);
       setIsRecording(true);
     } catch (err) {
       console.error("Microphone permission denied:", err);

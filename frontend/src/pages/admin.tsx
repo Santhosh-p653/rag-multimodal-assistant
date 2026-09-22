@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent, ChangeEvent } from "react";
+import { useState, useEffect, useRef, DragEvent, ChangeEvent } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -11,31 +11,50 @@ import {
   BookOpen,
   Plus,
   Search,
-  Info
+  Info,
+  Trash2,
+  X
 } from "lucide-react";
-import { uploadDocument, UploadResponse } from "../lib/api";
-
-interface UploadedItem {
-  id: string;
-  filename: string;
-  markdownFile: string;
-  timestamp: Date;
-  status: "success" | "duplicate" | "error";
-  details?: string;
-}
+import { uploadDocument, fetchFiles, deleteFile } from "../lib/api";
 
 export default function Admin() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
+  const [currentFileName, setCurrentFileName] = useState("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const [history, setHistory] = useState<UploadedItem[]>([]);
+
+  // Live available manuals from backend
+  const [availableManuals, setAvailableManuals] = useState<string[]>([]);
+  const [isLoadingManuals, setIsLoadingManuals] = useState(true);
+
+  // Deletion modal state
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load available manuals on mount
+  const loadManuals = async () => {
+    try {
+      setIsLoadingManuals(true);
+      const files = await fetchFiles();
+      setAvailableManuals(files);
+    } catch (err: any) {
+      console.error("Failed to load manuals:", err);
+    } finally {
+      setIsLoadingManuals(false);
+    }
+  };
+
+  useEffect(() => {
+    loadManuals();
+  }, []);
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -52,11 +71,16 @@ export default function Admin() {
     setError(null);
     setSuccess(null);
     setDuplicateNotice(null);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      setSelectedFile(file);
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      setSelectedFiles((prev) => {
+        const combined = [...prev, ...droppedFiles];
+        // Deduplicate by name
+        return combined.filter((f, idx, self) => idx === self.findIndex((t) => t.name === f.name));
+      });
     }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -64,62 +88,88 @@ export default function Admin() {
     setSuccess(null);
     setDuplicateNotice(null);
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => {
+        const combined = [...prev, ...newFiles];
+        return combined.filter((f, idx, self) => idx === self.findIndex((t) => t.name === f.name));
+      });
     }
+    // Always reset file input value so selecting the same or new files works consecutively
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const triggerFileSelect = () => {
     fileInputRef.current?.click();
   };
 
+  const removeSelectedFile = (fileName: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
+  };
+
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
     setIsUploading(true);
-    setProgress(0);
     setError(null);
     setSuccess(null);
     setDuplicateNotice(null);
 
-    // Check if file is already in history
-    const isDuplicate = history.some(h => h.filename === selectedFile.name && h.status === "success");
+    let uploadedCount = 0;
+    const errors: string[] = [];
 
-    try {
-      const result: UploadResponse = await uploadDocument(selectedFile, (pct) => {
-        setProgress(pct);
-      });
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      setCurrentUploadIndex(i + 1);
+      setCurrentFileName(file.name);
+      setProgress(0);
 
-      if (isDuplicate) {
-        setDuplicateNotice(`This manual (${result.filename}) was already in Octo RAG. Re-indexed latest version.`);
-      } else {
-        setSuccess(
-          `✓ "${result.filename}" processed and added to assistant manuals. Ready for search!`
-        );
+      try {
+        await uploadDocument(file, (pct) => {
+          setProgress(pct);
+        });
+        uploadedCount++;
+      } catch (err: any) {
+        const msg = err.message || `Failed to process ${file.name}`;
+        errors.push(`${file.name}: ${msg}`);
       }
+    }
 
-      const newItem: UploadedItem = {
-        id: Math.random().toString(36).substring(7),
-        filename: result.filename,
-        markdownFile: result.markdown_file,
-        timestamp: new Date(),
-        status: isDuplicate ? "duplicate" : "success",
-      };
-      setHistory((prev) => [newItem, ...prev.filter(h => h.filename !== result.filename)]);
-      setSelectedFile(null);
+    // Reset state & input reference
+    setSelectedFiles([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setIsUploading(false);
+
+    // Refresh live backend manual list immediately
+    await loadManuals();
+
+    if (errors.length > 0) {
+      setError(`Encountered issues during upload:\n${errors.join("\n")}`);
+    }
+    if (uploadedCount > 0) {
+      setSuccess(`✓ Successfully processed and indexed ${uploadedCount} manual${uploadedCount > 1 ? "s" : ""}. Ready for search!`);
+    }
+  };
+
+  // Delete manual flow with confirmation
+  const handleConfirmDelete = async () => {
+    if (!deletingFile) return;
+    setIsDeleting(true);
+    setError(null);
+    setSuccess(null);
+
+    const targetFile = deletingFile;
+    try {
+      await deleteFile(targetFile);
+      // Optimistic update
+      setAvailableManuals((prev) => prev.filter((f) => f !== targetFile));
+      setSuccess(`✓ Permanently deleted "${targetFile}" and cleared its search index.`);
+      setDeletingFile(null);
+      // Synchronize with backend
+      await loadManuals();
     } catch (err: any) {
-      const errorMessage = err.message || "Failed to process the document.";
-      setError(errorMessage);
-
-      const newItem: UploadedItem = {
-        id: Math.random().toString(36).substring(7),
-        filename: selectedFile.name,
-        markdownFile: "",
-        timestamp: new Date(),
-        status: "error",
-        details: errorMessage,
-      };
-      setHistory((prev) => [newItem, ...prev]);
+      setError(err.message || `Failed to delete ${targetFile}`);
+      setDeletingFile(null);
     } finally {
-      setIsUploading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -132,8 +182,8 @@ export default function Admin() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
   };
 
-  const filteredHistory = history.filter((item) =>
-    item.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredManuals = availableManuals.filter((file) =>
+    file.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -148,7 +198,7 @@ export default function Admin() {
               </span>
             </Link>
             <span className="text-xs text-octo-muted font-semibold bg-octo-surface-warm px-2.5 py-1 rounded-full border border-octo-border">
-              Manual Management
+              My Manuals
             </span>
           </div>
 
@@ -166,9 +216,9 @@ export default function Admin() {
       <main className="flex-1 max-w-[900px] mx-auto w-full p-4 md:p-8 space-y-8">
         {/* Header Title */}
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-octo-charcoal tracking-tight">Manuals & Documents</h1>
+          <h1 className="text-2xl font-bold text-octo-charcoal tracking-tight">My Manuals & Documents</h1>
           <p className="text-sm text-octo-muted">
-            Upload equipment manuals, PDF guides, and troubleshooting specs so Octo RAG can answer technical questions.
+            Upload, manage, and delete technical equipment manuals and PDF guides indexed in Octo RAG.
           </p>
         </div>
 
@@ -177,9 +227,9 @@ export default function Admin() {
           <div className="flex items-center justify-between border-b border-octo-border pb-4">
             <div className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-octo-orange" />
-              <h2 className="text-lg font-semibold text-octo-charcoal">Upload Manual</h2>
+              <h2 className="text-lg font-semibold text-octo-charcoal">Upload Manuals</h2>
             </div>
-            <span className="text-xs text-octo-muted">Max 25MB · PDF, DOCX, TXT</span>
+            <span className="text-xs text-octo-muted">Max 25MB each · PDF, DOCX, TXT</span>
           </div>
 
           {/* Drag & Drop Box */}
@@ -199,60 +249,81 @@ export default function Admin() {
               ref={fileInputRef}
               onChange={handleFileChange}
               accept=".pdf,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+              multiple
               className="hidden"
             />
             <div className="p-4 bg-white rounded-full border border-octo-border shadow-sm mb-3">
               <UploadCloud className="h-7 w-7 text-octo-orange" />
             </div>
             <p className="text-base font-semibold text-octo-charcoal text-center">
-              Drag and drop your manual here, or <span className="text-octo-orange hover:underline">browse files</span>
+              Drag and drop manuals here, or <span className="text-octo-orange hover:underline">browse files</span>
             </p>
-            <p className="text-xs text-octo-muted mt-1.5">Supported: PDF, Word (DOCX), Text files</p>
+            <p className="text-xs text-octo-muted mt-1.5">You can select multiple files at once. Supported: PDF, Word (DOCX), Text</p>
           </div>
 
-          {/* Selected File Card */}
-          {selectedFile && (
-            <div className="octo-card-subtle p-4 flex items-center justify-between gap-4 animate-fadeIn">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2.5 bg-white rounded-btn border border-octo-border text-octo-orange shrink-0">
-                  <File className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-octo-charcoal truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-octo-muted mt-0.5">{formatBytes(selectedFile.size)}</p>
-                </div>
+          {/* Selected Files List Preview */}
+          {selectedFiles.length > 0 && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs font-semibold text-octo-charcoal">
+                <span>Selected Files ({selectedFiles.length})</span>
+                <button
+                  onClick={() => setSelectedFiles([])}
+                  className="text-octo-muted hover:text-red-600 transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+
+              <div className="divide-y divide-octo-border border border-octo-border rounded-card bg-white overflow-hidden">
+                {selectedFiles.map((file) => (
+                  <div key={file.name} className="p-3 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-1.5 bg-octo-surface-warm rounded border border-octo-border text-octo-orange shrink-0">
+                        <File className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-octo-charcoal truncate">{file.name}</p>
+                        <p className="text-[11px] text-octo-muted">{formatBytes(file.size)}</p>
+                      </div>
+                    </div>
+                    {!isUploading && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSelectedFile(file.name);
+                        }}
+                        className="p-1 text-octo-muted hover:text-red-600 rounded hover:bg-red-50 transition-colors"
+                        title="Remove file"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
 
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="h-11 px-5 rounded-btn text-xs font-semibold text-white bg-octo-orange hover:bg-octo-orange-hover shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center gap-2"
+                className="w-full h-11 px-5 rounded-btn text-xs font-semibold text-white bg-octo-orange hover:bg-octo-orange-hover shadow-sm active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isUploading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>Processing file {currentUploadIndex} of {selectedFiles.length}: {currentFileName}...</span>
                   </>
                 ) : (
-                  <span>Upload Manual</span>
+                  <span>Upload & Index {selectedFiles.length} Manual{selectedFiles.length > 1 ? "s" : ""}</span>
                 )}
               </button>
             </div>
           )}
 
-          {/* Stage-by-Stage Progress Bar */}
+          {/* Upload Progress Bar */}
           {isUploading && (
-            <div className="space-y-3 p-4 bg-white rounded-card border border-octo-border animate-fadeIn">
+            <div className="space-y-2 p-4 bg-white rounded-card border border-octo-border animate-fadeIn">
               <div className="flex justify-between text-xs font-semibold text-octo-charcoal">
-                <span>
-                  {progress < 30
-                    ? "✓ Uploading document..."
-                    : progress < 60
-                    ? "✓ Extracting text & diagrams..."
-                    : progress < 90
-                    ? "✓ Updating search index..."
-                    : "✓ Almost ready!"}
-                </span>
+                <span>Ingesting {currentFileName}...</span>
                 <span>{progress}%</span>
               </div>
               <div className="h-2 w-full bg-octo-surface-warm rounded-full overflow-hidden border border-octo-border">
@@ -269,7 +340,7 @@ export default function Admin() {
             <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-card text-xs flex items-start gap-3 animate-fadeIn">
               <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-sm">Document Ingested</p>
+                <p className="font-semibold text-sm">Success</p>
                 <p className="mt-1 leading-relaxed">{success}</p>
               </div>
             </div>
@@ -290,22 +361,27 @@ export default function Admin() {
               <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-sm">Upload Issue</p>
-                <p className="mt-1 leading-relaxed">{error}</p>
+                <p className="mt-1 leading-relaxed whitespace-pre-line">{error}</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Document Library History ────────────────────────────────────────── */}
+        {/* ── Available Manuals Section (My Manuals) ─────────────────────────── */}
         <div className="octo-card p-6 md:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-octo-border pb-4">
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-octo-orange" />
-              <h2 className="text-lg font-semibold text-octo-charcoal">Session Upload Log</h2>
+              <h2 className="text-lg font-semibold text-octo-charcoal">Available Manuals</h2>
+              {availableManuals.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-octo-surface-warm text-octo-charcoal border border-octo-border">
+                  {availableManuals.length}
+                </span>
+              )}
             </div>
 
             {/* Filter Search Input */}
-            {history.length > 0 && (
+            {availableManuals.length > 0 && (
               <div className="relative flex items-center">
                 <Search className="h-3.5 w-3.5 text-octo-muted absolute left-3" />
                 <input
@@ -319,65 +395,58 @@ export default function Admin() {
             )}
           </div>
 
-          {history.length === 0 ? (
+          {isLoadingManuals ? (
+            <div className="text-center py-10">
+              <Loader2 className="h-6 w-6 text-octo-orange animate-spin mx-auto mb-2" />
+              <p className="text-xs text-octo-muted">Loading indexed manuals...</p>
+            </div>
+          ) : availableManuals.length === 0 ? (
             <div className="text-center py-10 border border-octo-border rounded-card bg-octo-surface-warm/40">
               <FileText className="h-8 w-8 text-octo-muted mx-auto mb-2" />
-              <p className="text-sm font-medium text-octo-charcoal">No documents uploaded in this session yet.</p>
-              <p className="text-xs text-octo-muted mt-1">Uploaded manuals will appear here after ingestion.</p>
+              <p className="text-sm font-medium text-octo-charcoal">No manuals currently available.</p>
+              <p className="text-xs text-octo-muted mt-1">Upload equipment manuals above to enable technical RAG search.</p>
             </div>
-          ) : filteredHistory.length === 0 ? (
+          ) : filteredManuals.length === 0 ? (
             <div className="text-center py-6 text-xs text-octo-muted">
               No manuals found matching "{searchQuery}".
             </div>
           ) : (
             <div className="divide-y divide-octo-border border border-octo-border rounded-card overflow-hidden bg-white">
-              {filteredHistory.map((item) => (
+              {filteredManuals.map((filename) => (
                 <div
-                  key={item.id}
+                  key={filename}
                   className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs hover:bg-octo-surface-warm/50 transition-colors gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`p-2 rounded-btn border shrink-0 ${
-                        item.status === "success" || item.status === "duplicate"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                          : "bg-red-50 border-red-200 text-red-700"
-                      }`}
-                    >
+                    <div className="p-2 rounded-btn border border-emerald-200 bg-emerald-50 text-emerald-700 shrink-0">
                       <File className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-octo-charcoal text-sm truncate">{item.filename}</p>
-                      <p className="text-xs text-octo-muted mt-0.5">
-                        Uploaded at {item.timestamp.toLocaleTimeString()} · Status:{" "}
-                        {item.status === "success"
-                          ? "✓ Ready for search"
-                          : item.status === "duplicate"
-                          ? "ℹ️ Re-indexed existing manual"
-                          : "Upload error"}
+                      <p className="font-semibold text-octo-charcoal text-sm truncate">{filename}</p>
+                      <p className="text-xs text-octo-muted mt-0.5 flex items-center gap-2">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                        <span>Indexed & Search Ready</span>
                       </p>
                     </div>
                   </div>
 
                   <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
                     <Link
-                      href="/"
-                      className="px-3 py-1 rounded-btn bg-octo-surface-warm hover:bg-[#E4DCD0] text-octo-charcoal border border-octo-border text-xs font-semibold transition-colors"
+                      href={`/?file=${encodeURIComponent(filename)}`}
+                      className="px-3 py-1.5 rounded-btn bg-octo-surface-warm hover:bg-[#E4DCD0] text-octo-charcoal border border-octo-border text-xs font-semibold transition-colors"
                     >
                       Ask about this
                     </Link>
-                    {item.status === "success" || item.status === "duplicate" ? (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Ready
-                      </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 cursor-help"
-                        title={item.details}
-                      >
-                        Failed
-                      </span>
-                    )}
+
+                    {/* Delete Action Button */}
+                    <button
+                      onClick={() => setDeletingFile(filename)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-btn bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-semibold transition-colors shadow-sm"
+                      title="Delete this manual"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -385,6 +454,55 @@ export default function Admin() {
           )}
         </div>
       </main>
+
+      {/* ── Confirmation Modal for Deleting Manual ───────────────────────────── */}
+      {deletingFile && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-card border border-octo-border shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-full bg-red-100 text-red-600 shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <h3 className="text-base font-bold text-octo-charcoal">Delete Manual</h3>
+                <p className="text-xs text-octo-muted leading-relaxed">
+                  Are you sure you want to permanently delete <strong className="text-octo-charcoal break-all">{deletingFile}</strong>?
+                </p>
+                <p className="text-xs text-red-600 font-medium">
+                  This will remove the document, its extracted diagrams, and all search vector embeddings. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-octo-border">
+              <button
+                onClick={() => setDeletingFile(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-btn border border-octo-border bg-white text-xs font-semibold text-octo-charcoal hover:bg-octo-surface-warm transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-btn bg-red-600 hover:bg-red-700 text-xs font-semibold text-white transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,8 +8,9 @@ from app.services.vector_store import VectorStoreService
 
 
 def test_vector_store_operations():
-    # Initialize store
-    service = VectorStoreService()
+    # Initialize store with :memory: to prevent file lock contention
+    VectorStoreService._instance = None
+    service = VectorStoreService(db_path=":memory:")
     service._collection_ready = True
 
     # Override instance client directly to avoid import timing issues
@@ -38,6 +39,9 @@ def test_vector_store_operations():
     chunks = service.get_all_chunks(source_file="test_manual.pdf")
     assert len(chunks) == 1
     assert chunks[0]["source_file"] == "test_manual.pdf"
+
+    # Verify has_source
+    assert service.has_source("test_manual.pdf") is True
 
     # Reset singleton so subsequent tests get a clean instance
     VectorStoreService._instance = None

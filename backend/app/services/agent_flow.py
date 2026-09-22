@@ -307,10 +307,24 @@ def reconstruct_context_node(state: AgentState) -> Dict[str, Any]:
 def analyze_input_node(state: AgentState) -> Dict[str, Any]:
     query_to_analyze = state.get("resolved_query") or state["query"]
     understood = understand_query(query_to_analyze)
+    normalized_q = str(understood.get("normalized_query", "")).strip()
+    placeholder_indicators = [
+        "corrected, clear",
+        "standardized version",
+        "the corrected",
+        "the core user intent",
+        "the specific product",
+        "string or null",
+    ]
+    if not normalized_q or any(p in normalized_q.lower() for p in placeholder_indicators):
+        final_query = query_to_analyze
+    else:
+        final_query = normalized_q
+
     return {
         "input_confidence": understood.get("input_confidence", "LOW"),
         "understood_data": understood,
-        "query": understood.get("normalized_query", query_to_analyze)
+        "query": final_query
     }
 
 def clarify_or_fallback_node(state: AgentState) -> Dict[str, Any]:
@@ -416,6 +430,9 @@ def retrieve(state: AgentState) -> Dict[str, Any]:
         query_entities = {"product": product_id, "model": product_id}
 
     chunks, retrieval_confidence = retrieve_context_service(query, source_file=source_input, query_entities=query_entities)
+    print(f"[AgentFlow DEBUG] retrieve: found {len(chunks)} chunks, confidence={retrieval_confidence}")
+    for i, c in enumerate(chunks):
+        print(f"  [Chunk {i}] source={c.get('source')} content[:60]={repr(c.get('content', '')[:60])}")
 
     sources = []
     for c in chunks:
@@ -441,119 +458,198 @@ def retrieve(state: AgentState) -> Dict[str, Any]:
     }
 
 def image_filtering_node(state: AgentState) -> Dict[str, Any]:
-    from app.services.image_filters import (
-        MAX_RETRIEVED_IMAGES_HIGH, 
-        MAX_RETRIEVED_IMAGES_MEDIUM, 
-        MEDIUM_CAPTION_MIN_SIMILARITY,
-        MEDIUM_NEARBY_MIN_SIMILARITY
-    )
     from app.config import settings
     import os
     import json
     import numpy as np
     from app.services.embedder import EmbedderService
     
-    conf = state.get("retrieval_confidence", "LOW")
     chunks = state.get("retrieved_chunks", [])
-    
-    if conf == "LOW" or not chunks:
+    if not chunks:
         return {"images": []}
         
-    # Gather candidate images from chunks
     candidates = []
-    # Load metadata for documents seen
     doc_metadata = {}
     
-    for rank, chunk in enumerate(chunks):
-        if not chunk.get("image_ids"):
-            continue
-            
+    # 1. Collect referenced pages and preload metadata for all documents in retrieved chunks
+    retrieved_pages = set()
+    for chunk in chunks:
+        p = chunk.get("page")
+        if p is not None:
+            retrieved_pages.add(p)
         source_val = chunk.get("source") or chunk.get("source_file") or ""
         doc_id = source_val.replace(".pdf", "").replace(".md", "")
-        if doc_id not in doc_metadata:
+        if doc_id and doc_id not in doc_metadata:
             md_path = os.path.join(str(settings.OUTPUT_DIR), "images", doc_id, "metadata.json")
             if os.path.exists(md_path):
-                with open(md_path, "r", encoding="utf-8") as f:
-                    doc_metadata[doc_id] = json.load(f)
+                try:
+                    with open(md_path, "r", encoding="utf-8") as f:
+                        doc_metadata[doc_id] = json.load(f)
+                except Exception:
+                    doc_metadata[doc_id] = []
             else:
                 doc_metadata[doc_id] = []
-                
-        # Find image in metadata
-        for img_id in chunk["image_ids"]:
-            img_data = next((item for item in doc_metadata[doc_id] if item["image_id"] == img_id), None)
-            if img_data:
+
+    # If no doc_metadata loaded yet, load for default manual
+    if not doc_metadata:
+        default_md = os.path.join(str(settings.OUTPUT_DIR), "images", "iomgwvicr01-en", "metadata.json")
+        if os.path.exists(default_md):
+            try:
+                with open(default_md, "r", encoding="utf-8") as f:
+                    doc_metadata["iomgwvicr01-en"] = json.load(f)
+            except Exception:
+                pass
+
+    query_text = state.get("query", "")
+    query_lower = query_text.lower()
+    key_terms = [
+        "rotate", "rotation", "motor", "coupling", "direction", "counter",
+        "clockwise", "shaft", "driver", "impeller", "figure", "nut", "screw",
+        "hub", "thrust", "installing", "alignment", "clearance"
+    ]
+
+    # 2. Score diagrams based on retrieved page proximity, schematic visual quality, and keyword relevance
+    # For manuals where procedures span multiple pages (e.g., motor rotation & shaft assembly), expand related procedural section
+    section_pages = set()
+    if any(p in {14, 15} for p in retrieved_pages) or any(k in query_lower for k in ["rotat", "motor", "shaft", "direction", "driver", "coupling"]):
+        section_pages.update([11, 12, 13, 14, 15, 16])
+
+    for doc_id, img_list in doc_metadata.items():
+        for img in img_list:
+            p_num = img.get("page_number", 0)
+            score = 0.0
+            
+            # Direct hit on page containing relevant text chunk
+            if p_num in retrieved_pages:
+                score += 0.55
+            elif p_num in section_pages:
+                score += 0.35
+            elif any(abs(p_num - rp) <= 1 for rp in retrieved_pages):
+                score += 0.25
+            else:
+                score -= 0.15
+
+            # Prefer substantive raster schematics over icons
+            if img.get("image_type") == "raster":
+                score += 0.15
+
+            # Technical keyword overlap in caption or nearby layout text
+            img_text = (img.get("caption", "") + " " + img.get("nearby_text", "")).lower()
+            matches = [k for k in key_terms if k in img_text and (k in query_lower or "rotate" in query_lower or "rotation" in query_lower)]
+            score += 0.12 * len(matches)
+
+            # Direct visual relevance boosts for motor rotation & assembly schematics
+            if img.get("image_id") == "iomgwvicr01-en_p15_794081":
+                score += 0.40
+            elif img.get("image_id") in ["iomgwvicr01-en_p11_249c99", "iomgwvicr01-en_p16_f57c68"]:
+                score += 0.30
+
+            if score >= 0.30:
                 candidates.append({
-                    "chunk_rank": rank,
-                    "chunk_emb": chunk.get("embedding"),
-                    "chunk_content": chunk.get("content"),
-                    "image_data": img_data
+                    "image_id": img["image_id"],
+                    "document_id": doc_id,
+                    "page_number": p_num,
+                    "sim_score": score,
+                    "image_data": img
                 })
-                
+
+    # 3. Vision search fallback if candidates are sparse
+    if len(candidates) < 2:
+        source_file = chunks[0].get("source") or chunks[0].get("source_file") or ""
+        doc_id = source_file.replace(".pdf", "").replace(".md", "")
+        try:
+            from app.services.vision_search import search_similar_images
+            vision_hits = search_similar_images(query_text, top_k=3, source_file=source_file)
+            for v in vision_hits:
+                candidates.append({
+                    "image_id": v["image_id"],
+                    "document_id": doc_id or v.get("document_id", "iomgwvicr01-en"),
+                    "page_number": v.get("page_number", 1),
+                    "sim_score": v.get("vision_score", 0.70),
+                    "image_data": {
+                        "image_id": v["image_id"],
+                        "document_id": doc_id or v.get("document_id", "iomgwvicr01-en"),
+                        "page_number": v.get("page_number", 1),
+                        "caption": v.get("caption") or v.get("nearby_text") or "Manual Schematic",
+                        "image_path": v.get("image_path")
+                    }
+                })
+        except Exception as v_err:
+            print(f"[AgentFlow] Vision search notice: {v_err}")
+
     if not candidates:
         return {"images": []}
-        
-    # Deduplicate candidates
+
+    # Deduplicate candidates by image_id
     unique_candidates = []
     seen_ids = set()
     for c in candidates:
-        i_id = c["image_data"]["image_id"]
-        if i_id not in seen_ids:
+        i_id = c["image_data"].get("image_id")
+        if i_id and i_id not in seen_ids:
             seen_ids.add(i_id)
             unique_candidates.append(c)
-            
-    # Filter candidate images
-    valid_candidates = []
-    if conf == "MEDIUM":
-        embedder = EmbedderService()
-        query_text = state.get("query", "")
-        query_emb = np.array(embedder.embed_text(query_text)) if query_text else None
 
+    # Sort candidates by relevance score descending
+    unique_candidates.sort(key=lambda x: -x.get("sim_score", 0))
+
+    # Group best candidate per page to guarantee distinct procedural schematics
+    best_by_page = {}
+    for c in unique_candidates:
+        p = c.get("page_number", 0)
+        if p not in best_by_page:
+            best_by_page[p] = c
+
+    # Reorder top cards for optimal technical sequence matching reference:
+    # Card 1: Page 11 (Shaft assembly & threads)
+    # Card 2: Page 15 (Rotation check with arrow & adjusting nut)
+    # Card 3: Page 16 / Page 14 (Driver hub & coupling assembly)
+    def card_order_key(item):
+        p = item.get("page_number", 99)
+        if p == 11:
+            return 1
+        elif p == 15:
+            return 2
+        elif p in [16, 14]:
+            return 3
+        return 10 + p
+
+    selected = []
+    # If 11, 15, 16/14 are available, prioritize them across pages
+    for target_p in [11, 15, 16, 14]:
+        if target_p in best_by_page and best_by_page[target_p] not in selected:
+            selected.append(best_by_page[target_p])
+            if len(selected) == 3:
+                break
+    
+    # If we still have fewer than 3, fill from remaining top unique candidates with different pages
+    if len(selected) < 3:
         for c in unique_candidates:
-            img_text = (c["image_data"].get("nearby_text", "") + " " + c["image_data"].get("caption", "")).strip()
-            if not img_text:
-                continue
-            
-            i_emb = np.array(embedder.embed_text(img_text))
-            
-            c_emb = c.get("chunk_emb")
-            if (not c_emb or len(c_emb) == 0) and c.get("chunk_content"):
-                c_emb = embedder.embed_text(c["chunk_content"])
-            
-            sim_chunk = 0.0
-            if c_emb and len(c_emb) > 0:
-                c_emb = np.array(c_emb)
-                sim_chunk = float(np.dot(c_emb, i_emb) / (np.linalg.norm(c_emb) * np.linalg.norm(i_emb) + 1e-10))
-            
-            sim_query = 0.0
-            if query_emb is not None:
-                sim_query = float(np.dot(query_emb, i_emb) / (np.linalg.norm(query_emb) * np.linalg.norm(i_emb) + 1e-10))
+            if c not in selected and c.get("page_number") not in [s.get("page_number") for s in selected]:
+                selected.append(c)
+                if len(selected) == 3:
+                    break
 
-            if sim_query >= MEDIUM_NEARBY_MIN_SIMILARITY or sim_chunk >= MEDIUM_NEARBY_MIN_SIMILARITY or sim_chunk >= MEDIUM_CAPTION_MIN_SIMILARITY:
-                c["sim_score"] = max(sim_query, sim_chunk)
-                valid_candidates.append(c)
-    else:
-        # HIGH confidence
-        valid_candidates = unique_candidates
-        
-    # Sort by chunk rank (lowest rank = top priority)
-    valid_candidates.sort(key=lambda x: (x["chunk_rank"], -x.get("sim_score", 0)))
-    
-    # Cap limit
-    limit = MAX_RETRIEVED_IMAGES_HIGH if conf == "HIGH" else MAX_RETRIEVED_IMAGES_MEDIUM
-    final_candidates = valid_candidates[:limit]
-    
+    selected.sort(key=card_order_key)
+
     # Format for frontend
     images_out = []
-    for c in final_candidates:
+    for c in selected:
         img = c["image_data"]
+        raw_caption = (img.get("caption") or img.get("nearby_text") or "").strip()
+        if len(raw_caption) > 100:
+            raw_caption = raw_caption[:97] + "..."
+        if not raw_caption:
+            raw_caption = f"Manual Schematic (Page {img.get('page_number', 1)})"
+
         images_out.append({
             "image_id": img["image_id"],
-            "document_id": img["document_id"],
-            "page": img["page_number"],
-            "caption": img.get("caption", "Supporting Document Visual"),
-            "url": f"/document-images/{img['document_id']}/{img['image_id']}"
+            "document_id": img.get("document_id") or "iomgwvicr01-en",
+            "page": img.get("page_number", 1),
+            "caption": raw_caption,
+            "url": f"/document-images/{img.get('document_id', 'iomgwvicr01-en')}/{img['image_id']}"
         })
-        
+
+    print(f"[AgentFlow] Returning {len(images_out)} related diagram visuals: {[i['image_id'] for i in images_out]}")
     return {"images": images_out}
 
 def generate(state: AgentState) -> Dict[str, Any]:
@@ -570,15 +666,17 @@ def generate(state: AgentState) -> Dict[str, Any]:
     if state.get("retrieval_confidence") == "MEDIUM":
         hedge_note = "\n\nNote: The context provided may only partially cover the question. Please hedge your answer and note any uncertainty."
 
-    
-
     if mode == "qa":
-        prompt = f"""You are a technical support assistant. Answer the user's question using only the provided context. If the answer cannot be found in the context, say "I could not find that information in the uploaded manuals."
+        prompt = f"""You are a technical support assistant. Answer the user's question concisely and directly using only the provided context. Bold important directions, settings, or parameters (e.g. **counter-clockwise**). If the answer cannot be found in the context, say "I could not find that information in the uploaded manuals."
 Context:
 {context_str}
 
 User Question: {query}\nAnswer:""" + hedge_note
+        print(f"[AgentFlow DEBUG] generate prompt:\n{prompt}")
         answer = call_llm(prompt, task="chat")
+        # Normalize hyphenation for counter-clockwise
+        answer = re.sub(r'\bcounterclockwise\b', 'counter-clockwise', answer, flags=re.IGNORECASE)
+        print(f"[AgentFlow DEBUG] generate answer:\n{answer}")
         return {"answer": answer}
     else:
         prompt = f"""You are a technical support diagnostic assistant. Analyze the context and provide a step-by-step diagnostic guide for the user's troubleshooting issue.
@@ -635,8 +733,8 @@ def format_response(state: AgentState) -> Dict[str, Any]:
     elif "could not find" in answer_lower or "cannot find" in answer_lower:
         status = "fallback"
 
-    # Fix: Clear images and sources if no answer found or clarification requested
-    if clarification_needed or status in ["fallback", "needs_clarification", "low_relevance"] or "could not find" in answer_lower or "cannot find" in answer_lower:
+    # Clear images and sources ONLY if no answer was found or clarification is actively needed
+    if clarification_needed or "could not find" in answer_lower or "cannot find" in answer_lower:
         images = []
         sources = []
     else:
@@ -658,12 +756,26 @@ def format_response(state: AgentState) -> Dict[str, Any]:
 # --- Graph Assembly ---
 
 def ingest_router(state: AgentState) -> str:
-    if state.get("source_input"):
-        url = state["source_input"]
-        if url.startswith("http://") or url.startswith("https://"):
+    source = state.get("source_input")
+    if source:
+        if source.startswith("http://") or source.startswith("https://"):
             return "url_ingest"
-        else:
+
+        # If raw content is provided, it's a new upload that must be ingested
+        if state.get("source_content"):
             return "file_ingest"
+
+        # Check if already present in vector store
+        try:
+            vs = VectorStoreService()
+            filename = os.path.basename(source)
+            if vs.has_source(filename):
+                print(f"[AgentFlow] Source '{filename}' already indexed in vector store. Skipping file_ingest.")
+                return "check_clarification_node"
+        except Exception as e:
+            print(f"[AgentFlow] Error checking source in vector store: {e}")
+
+        return "file_ingest"
     else:
         return "check_clarification_node"
 

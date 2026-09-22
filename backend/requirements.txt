@@ -28,3 +28,4 @@ sentencepiece
 protobuf
 mcp>=1.2.0
 ollama
+matplotlib

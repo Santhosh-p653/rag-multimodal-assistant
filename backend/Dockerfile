@@ -33,6 +33,9 @@ RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', de
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 RUN python -c "from transformers import AutoProcessor, AutoModel; AutoProcessor.from_pretrained('google/siglip-base-patch16-224'); AutoModel.from_pretrained('google/siglip-base-patch16-224')"
 
+# Create runtime data directories
+RUN mkdir -p data_sandbox/input_manuals data_sandbox/processed_markdown
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
