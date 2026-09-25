@@ -372,7 +372,7 @@ async def chat(payload: ChatRequest, request: Request):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
+            detail="I am specialized strictly in automotive and vehicle technical diagnostics. Please ask a query related to your vehicle service manual, OBD-II error codes, or mechanical troubleshooting."
         )
 
     from app.config import MAX_CLARIFICATION_ATTEMPTS
@@ -413,7 +413,7 @@ async def chat(payload: ChatRequest, request: Request):
         if is_out_of_domain(resolved_query):
             raise HTTPException(
                 status_code=400,
-                detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
+                detail="I am specialized strictly in automotive and vehicle technical diagnostics. Please ask a query related to your vehicle service manual, OBD-II error codes, or mechanical troubleshooting."
             )
 
         if res_conf == "LOW":
@@ -557,7 +557,7 @@ async def chat_stream(request: Request, payload: ChatRequest):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
+            detail="I am specialized strictly in automotive and vehicle technical diagnostics. Please ask a query related to your vehicle service manual, OBD-II error codes, or mechanical troubleshooting."
         )
 
     chunks, confidence = retrieve_context(payload.message, source_file=payload.source_file)
@@ -787,7 +787,7 @@ async def troubleshoot(payload: TroubleshootRequest, request: Request):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
+            detail="I am specialized strictly in automotive and vehicle technical diagnostics. Please ask a query related to your vehicle service manual, OBD-II error codes, or mechanical troubleshooting."
         )
 
     # 1. Log user turn in PostgreSQL
@@ -838,7 +838,7 @@ async def agent_run(payload: AgentRequest, request: Request):
     if is_out_of_domain(payload.query):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
+            detail="I am specialized strictly in automotive and vehicle technical diagnostics. Please ask a query related to your vehicle service manual, OBD-II error codes, or mechanical troubleshooting."
         )
         
     session_id = payload.session_id

@@ -739,7 +739,11 @@ def generate(state: AgentState) -> Dict[str, Any]:
         hedge_note = "\n\nNote: The context provided may only partially cover the question. Please hedge your answer and note any uncertainty."
 
     if mode == "qa":
-        prompt = f"""You are a technical support assistant. Answer the user's question concisely and directly using only the provided context. Bold important directions, settings, or parameters (e.g. **counter-clockwise**). If the answer cannot be found in the context, say "{fallback_msg}".
+        prompt = f"""You are Octo RAG AutoTech, an expert Master Automotive Diagnostic Technician.
+Answer the user's automotive question concisely, accurately, and directly using ONLY the provided vehicle manual context.
+Maintain strict adherence to OEM repair procedures, safety protocols, wiring diagrams, and torque specifications.
+Bold important directions, torque ratings, or test values (e.g. **18 ft-lbs**, **counter-clockwise**, **Pin 4 (Signal Ground)**).
+If the answer cannot be found in the context, say "{fallback_msg}".
 Context:
 {context_str}
 
@@ -751,15 +755,16 @@ User Question: {raw_q} (Semantic meaning: {query})\nAnswer:""" + hedge_note + la
         _safe_log(f"[AgentFlow DEBUG] generate answer:\n{answer}")
         return {"answer": answer}
     else:
-        prompt = f"""You are a technical support diagnostic assistant. Analyze the context and provide a step-by-step diagnostic guide for the user's troubleshooting issue.
+        prompt = f"""You are Octo RAG AutoTech, an expert Master Automotive Diagnostic Technician.
+Analyze the context and provide an authoritative, step-by-step automotive diagnostic and repair procedure for the user's vehicle issue.
 Generate your response strictly as a JSON object with two fields:
-1. "answer": A brief explanation of the problem based on the context.
-2. "steps": A JSON list of string steps representing the diagnostic sequence.
+1. "answer": A technical diagnostic summary of the probable fault root causes based on the manual context.
+2. "steps": A JSON list of sequential diagnostic and repair instructions (including required tools, test procedures, safety precautions, and reassembly torque specs).
 
 Example format:
 {{
   "answer": "...",
-  "steps": ["Step 1: ...", "Step 2: ..."]
+  "steps": ["Step 1: Relieve fuel system pressure...", "Step 2: Disconnect the negative battery cable..."]
 }}
 
 Return only valid JSON. Do not write any markdown, backticks, or other text outside the JSON.{lang_directive}

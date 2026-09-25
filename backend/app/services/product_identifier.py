@@ -54,74 +54,71 @@ def identify_product_fallback(text: str) -> Dict[str, Any]:
         if match:
             product = match.group(1).upper()
 
-    # 2. Error code detection (Supports OBD-II DTCs e.g. P0300, P0171, B1000, U0100 and appliance codes e.g. E105, ER FF)
+    # 2. Error code detection (Supports OBD-II DTCs e.g. P0300, P0171, B1000, C0035, U0100)
     error_code = None
     obd_match = re.search(r"\b([pbcu]\d{4})\b", text_lower)
     err_match = re.search(r"\b(e\d{3})\b", text_lower)
-    fridge_err_match = re.search(r"\b(er\s*ff|sy\s*ef|22\s*e)\b", text_lower)
 
     if obd_match:
         error_code = obd_match.group(1).upper()
         if not category:
             category = "Automobile"
-    elif fridge_err_match:
-        error_code = fridge_err_match.group(1).upper()
-        if not category:
-            category = "Refrigerator"
     elif err_match:
         error_code = err_match.group(1).upper()
 
     # 3. Category detection fallback
     if not category:
-        if any(term in text_lower for term in ["car", "vehicle", "truck", "automobile", "engine", "transmission"]):
+        if any(term in text_lower for term in ["car", "vehicle", "truck", "automobile", "engine", "transmission", "motor"]):
             category = "Automobile"
-        elif any(term in text_lower for term in ["refrigerator", "fridge", "freezer", "cooler", "chiller"]):
-            category = "Refrigerator"
-        elif "printer" in text_lower:
-            category = "Printer"
-        elif "router" in text_lower:
-            category = "Router"
-        elif "camera" in text_lower:
-            category = "Camera"
 
-    # 4. Component detection (Automotive + Appliance)
+    # 4. Component detection (Automotive Systems)
     component = None
     components = [
-        # Automotive components
+        # Ignition & Engine Management
         "spark plug",
+        "spark plugs",
+        "ignition coil",
         "oxygen sensor",
         "o2 sensor",
+        "mass air flow",
+        "maf sensor",
+        "map sensor",
+        "throttle body",
+        "camshaft sensor",
+        "crankshaft sensor",
         "catalytic converter",
+        # Fuel & Intake Systems
         "fuel pump",
         "fuel injector",
+        "fuel injectors",
+        "fuel rail",
+        "fuel filter",
+        # Charging & Starting
         "alternator",
         "starter motor",
         "starter",
+        "battery",
+        # Brakes & Chassis
         "brake pad",
         "brake pads",
         "brake rotor",
+        "brake caliper",
+        "abs sensor",
+        "tie rod",
+        "control arm",
+        "ball joint",
+        "strut",
+        "shock absorber",
+        # Cooling & Lubrication
         "radiator",
+        "water pump",
+        "thermostat",
         "timing belt",
         "timing chain",
         "oil filter",
         "air filter",
-        "battery",
-        # Appliance components
-        "cooling fan",
-        "power supply",
-        "evaporator fan",
-        "defrost heater",
-        "door seal",
-        "compressor",
-        "thermostat",
-        "ink cartridge",
-        "fan",
-        "cable",
-        "tray",
-        "ink",
-        "toner",
-        "cartridge",
-        "drum",
+        "transmission",
+        "clutch",
     ]
     for c in components:
         if c in text_lower:
@@ -150,16 +147,16 @@ def identify_product_llm(text: str) -> Optional[Dict[str, Any]]:
     if LLM_PROVIDER == "none" and not getattr(settings, "OLLAMA_ENABLED", False):
         return None
 
-    prompt = f"""You are a technical support metadata extractor.
-Analyze the following text and extract the following entity fields:
-- product (e.g. "Toyota Camry", "Ford F-150", "X100", "A200", null if not found)
-- model (e.g. "Camry", "F-150", "X100", null if not found)
-- category (e.g. "Automobile", "Refrigerator", "Printer", null if not found)
-- error_code (e.g. "P0300", "P0171", "E105", "ER FF", null if not found)
-- component (e.g. "Spark Plug", "Alternator", "Evaporator Fan", null if not found)
-- product_family (e.g. "Toyota", "Ford", "X-Series", null if not found)
-- version (e.g. "v2.1", "2022", null if not found)
-- section (e.g. "Troubleshooting", "Installation", null if not found)
+    prompt = f"""You are an automotive technical support metadata extractor.
+Analyze the following text and extract the following vehicle entity fields:
+- product (e.g. "Toyota Camry", "Ford F-150", "Honda Civic", null if not found)
+- model (e.g. "Camry", "F-150", "Civic", null if not found)
+- category (e.g. "Automobile", "Vehicle", null if not found)
+- error_code (e.g. "P0300", "P0171", "C0035", "U0100", null if not found)
+- component (e.g. "Spark Plug", "Alternator", "Oxygen Sensor", "Brake Caliper", null if not found)
+- product_family (e.g. "Toyota", "Ford", "Honda", null if not found)
+- version (e.g. "2020", "Gen 4", null if not found)
+- section (e.g. "Engine Diagnostics", "Braking System", "Troubleshooting", null if not found)
 - page (integer if mentioned, otherwise null)
 
 Return the result strictly as a valid JSON object. Do not include any other markdown, text, backticks, or explanation.
