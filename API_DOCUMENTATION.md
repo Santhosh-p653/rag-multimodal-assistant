@@ -42,14 +42,20 @@ Comprehensive, authoritative technical reference for the **OCTO-AUTO RAG** REST 
     - [GET /health/llm](#get-healthllm)
 13. [Model Context Protocol (MCP) Integration](#13-model-context-protocol-mcp-integration)
     - [Architecture & Protocol Mount](#architecture--protocol-mount)
-    - [Tool 1: search_vehicle_manuals](#tool-1-search_vehicle_manuals)
-    - [Tool 2: lookup_obd_error_code](#tool-2-lookup_obd_error_code)
-    - [Tool 3: get_ect_sensor_ohm_table](#tool-3-get_ect_sensor_ohm_table)
-    - [Tool 4: lookup_oem_part_number](#tool-4-lookup_oem_part_number)
+    - [Tool 1: search_fridge_manuals](#tool-1-search_fridge_manuals)
+    - [Tool 2: lookup_error_code](#tool-2-lookup_error_code)
+    - [Tool 3: get_thermistor_ohm_table](#tool-3-get_thermistor_ohm_table)
+    - [Tool 4: lookup_part_number](#tool-4-lookup_part_number)
     - [Tool 5: run_octo_agent](#tool-5-run_octo_agent)
-    - [Tool 6: troubleshoot_vehicle_turn](#tool-6-troubleshoot_vehicle_turn)
-14. [Security, Automotive Domain Boundaries & Rate Limiting](#14-security-automotive-domain-boundaries--rate-limiting)
-15. [Error Handling & HTTP Status Codes](#15-error-handling--http-status-codes)
+    - [Tool 6: troubleshoot_appliance_turn](#tool-6-troubleshoot_appliance_turn)
+    - [Tool 7: list_manuals (Files MCP)](#tool-7-list_manuals-files-mcp)
+    - [Tool 8: upload_manual (Files MCP)](#tool-8-upload_manual-files-mcp)
+    - [Tool 9: delete_manual (Files MCP)](#tool-9-delete_manual-files-mcp)
+    - [Tool 10: get_manual_metadata (Files MCP)](#tool-10-get_manual_metadata-files-mcp)
+14. [Audit Trail & Telemetry APIs](#14-audit-trail--telemetry-apis)
+    - [GET /audit/turns](#get-auditturns)
+15. [Security, Domain Boundaries & Rate Limiting](#15-security-domain-boundaries--rate-limiting)
+16. [Error Handling & HTTP Status Codes](#16-error-handling--http-status-codes)
 16. [End-to-End Automotive Workflows](#16-end-to-end-automotive-workflows)
 17. [Verification & Testing Guide](#17-verification--testing-guide)
 18. [Interactive API Explorers (Swagger & ReDoc)](#18-interactive-api-explorers-swagger--redoc)
@@ -451,9 +457,12 @@ Executes the autonomous **LangGraph `StateGraph`** agentic workflow for vehicle 
 {
   "query": "Troubleshoot diagnostic trouble code P0301 on 2021 Toyota Camry",
   "source_input": "Toyota_Camry_2.5L_2021_Service_Manual.pdf",
-  "session_id": "bay-2-agent-session"
+  "session_id": "bay-2-agent-session",
+  "language": "auto"
 }
 ```
+
+- `language` (`string`, optional, default `"auto"`): Language code hint for response generation (`"auto"`, `"ta"` for Tamil, `"hi"` for Hindi, `"en"` for English). If `"auto"`, the engine automatically detects script Unicode ranges (`\u0b80-\u0bff` for Tamil, `\u0900-\u097f` for Hindi).
 
 #### Response Example (200 OK — `AgentResponse`)
 
@@ -765,16 +774,153 @@ Executes full LangGraph autonomous troubleshooting flow from external MCP client
 
 ---
 
-### Tool 6: troubleshoot_vehicle_turn
+### Tool 6: troubleshoot_appliance_turn
 
-Drives interactive multi-turn OBD-II diagnostic flows from within MCP tools, updating PostgreSQL session state.
+Drives interactive multi-turn diagnostic flows from within MCP tools, updating PostgreSQL session state.
 
 - **Parameters**: `session_id` (`string`), `message` (`string`).
 - **Output**: Diagnostic state machine payload (`status`, `question`/`action`, `session`).
 
 ---
 
-## 14. Security, Automotive Domain Boundaries & Rate Limiting
+### Tool 7: list_manuals (Files MCP)
+
+Lists all technical manuals indexed across the hybrid system, querying the PostgreSQL `manual_registry` and comparing against Qdrant vector sources.
+
+- **Parameters**: None.
+- **Output Example**:
+  ```json
+  {
+    "status": "success",
+    "count": 8,
+    "manuals": [
+      {
+        "id": 1,
+        "filename": "GE_Profile_Fridge.pdf",
+        "file_hash": "a1b2c3d4e5f6...",
+        "file_size_bytes": 1048576,
+        "chunks_count": 28,
+        "equipment_type": "appliance",
+        "model": "GE Profile",
+        "uploaded_at": "2026-09-25T16:47:00Z",
+        "is_active": true
+      }
+    ],
+    "vector_sources": ["GE_Profile_Fridge.pdf", "Toyota_Camry_Manual.pdf"]
+  }
+  ```
+
+---
+
+### Tool 8: upload_manual (Files MCP)
+
+Uploads and registers a new equipment manual document via MCP protocol without touching HTTP endpoints.
+1. Decodes binary base64 file content.
+2. Checks MD5 hash duplicate in PostgreSQL (skips re-indexing if unchanged).
+3. Parses text and figures using MarkItDown and PyMuPDF.
+4. Chunks text and embeds vectors into Qdrant `manuals` collection.
+5. Inserts metadata record into PostgreSQL `manual_registry`.
+
+- **Parameters**:
+  - `filename` (`string`, required): Name of the file (e.g. `Haas_CNC_VF2.pdf`).
+  - `content_base64` (`string`, required): Base64-encoded file bytes.
+  - `equipment_type` (`string`, optional, default `"industrial"`): Equipment category (`"industrial"`, `"automobile"`, `"appliance"`).
+  - `model` (`string`, optional): Equipment model identifier.
+- **Output Example**:
+  ```json
+  {
+    "status": "processed",
+    "filename": "Haas_CNC_VF2.pdf",
+    "markdown_file": "output/Haas_CNC_VF2.md",
+    "chunks_ingested": 42,
+    "equipment_type": "industrial",
+    "registered_record": { "id": 9, "filename": "Haas_CNC_VF2.pdf" }
+  }
+  ```
+
+---
+
+### Tool 9: delete_manual (Files MCP)
+
+Atomically purges an equipment manual from the entire knowledge infrastructure:
+1. Deletes raw document from storage.
+2. Deletes parsed markdown and figure image directories.
+3. Purges text chunks from Qdrant `manuals` collection.
+4. Purges image vectors from Qdrant `manual_images` collection.
+5. Removes record from PostgreSQL `manual_registry`.
+6. Flushes retrieval LRU cache.
+
+- **Parameters**:
+  - `filename` (`string`, required): Name of manual to purge.
+- **Output Example**:
+  ```json
+  {
+    "status": "deleted",
+    "filename": "Haas_CNC_VF2.pdf",
+    "postgres_record_removed": true
+  }
+  ```
+
+---
+
+### Tool 10: get_manual_metadata (Files MCP)
+
+Inspects indexing telemetry, chunk count, file size, MD5 hash, and vector health for a specified manual.
+
+- **Parameters**:
+  - `filename` (`string`, required): Name of manual to inspect.
+- **Output Example**:
+  ```json
+  {
+    "status": "success",
+    "filename": "GE_Profile_Fridge.pdf",
+    "found": true,
+    "in_vector_store": true,
+    "metadata": {
+      "filename": "GE_Profile_Fridge.pdf",
+      "chunks_count": 28,
+      "equipment_type": "appliance",
+      "file_hash": "a1b2c3d4e5f6..."
+    }
+  }
+  ```
+
+---
+
+## 14. Audit Trail & Telemetry APIs
+
+### GET /audit/turns
+
+Retrieves chronologically ordered technician diagnostic turn logs from PostgreSQL `session_turns` for compliance and procedure adherence audits.
+
+- **HTTP Method**: `GET`
+- **Path**: `/audit/turns`
+- **Query Parameters**:
+  - `limit` (`integer`, optional, default `50`): Maximum records to retrieve.
+- **Response (200 OK)**:
+  ```json
+  {
+    "status": "ok",
+    "count": 14,
+    "turns": [
+      {
+        "id": 1,
+        "session_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "turn_index": 1,
+        "user_input": "ஃப்ரீஸர் பத்தி சொல்லு",
+        "system_response": "ஃப்ரீஸர் பகுதி 0 டிகிரி ஃபாரன்ஹைட் (-18 C) வெப்பநிலையைப் பராமரிக்கிறது...",
+        "detected_language": "ta",
+        "retrieval_confidence": "HIGH",
+        "context_citations": ["GE_Profile_Fridge.pdf#p14"],
+        "created_at": "2026-09-25T16:48:30Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+## 15. Security, Domain Boundaries & Rate Limiting
 
 ### Pre-LLM Perimeter Protection
 

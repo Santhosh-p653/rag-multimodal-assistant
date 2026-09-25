@@ -300,7 +300,7 @@ def run_octo_agent(query: str, source_input: str = "", session_id: str = "") -> 
         return {"answer": f"Agent workflow execution failed: {str(e)}", "status": "error"}
 
 
-def _run_async_safely(coro):
+def _run_async_safely(async_fn, *args, **kwargs):
     """Safely run async coroutine from synchronous MCP tool regardless of event loop state."""
     import asyncio
     import concurrent.futures
@@ -311,9 +311,9 @@ def _run_async_safely(coro):
 
     if loop and loop.is_running():
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            return executor.submit(lambda: asyncio.run(coro)).result()
+            return executor.submit(lambda: asyncio.run(async_fn(*args, **kwargs))).result()
     else:
-        return asyncio.run(coro)
+        return asyncio.run(async_fn(*args, **kwargs))
 
 
 # --- Stateful Troubleshooting Turn Tool ---
@@ -332,7 +332,7 @@ def troubleshoot_appliance_turn(session_id: str, message: str) -> dict:
     """
     try:
         from app.services.workflow_manager import process_troubleshoot_turn
-        return _run_async_safely(process_troubleshoot_turn(session_id, message))
+        return _run_async_safely(process_troubleshoot_turn, session_id, message)
     except Exception as e:
         return {"answer": f"Troubleshooting turn failed: {str(e)}", "status": "error"}
 
@@ -352,7 +352,7 @@ def list_manuals() -> dict:
         from app.database.postgres import list_registered_manuals
         from app.services.vector_store import VectorStoreService
 
-        pg_manuals = _run_async_safely(list_registered_manuals())
+        pg_manuals = _run_async_safely(list_registered_manuals)
         vs = VectorStoreService()
         vector_sources = vs.get_unique_sources()
 
@@ -397,7 +397,7 @@ def upload_manual(
             return {"status": "error", "error": "Decoded file content is empty"}
 
         # Check duplicate
-        dup = _run_async_safely(check_manual_duplicate_by_hash(file_bytes))
+        dup = _run_async_safely(check_manual_duplicate_by_hash, file_bytes)
         if dup:
             return {
                 "status": "skipped_duplicate",
@@ -412,13 +412,14 @@ def upload_manual(
         parse_result = parser.parse_file(filename, file_bytes)
 
         # Register in PostgreSQL
-        reg_result = _run_async_safely(register_manual(
+        reg_result = _run_async_safely(
+            register_manual,
             filename=filename,
             file_bytes=file_bytes,
             equipment_type=equipment_type,
             model=model if model else None,
             chunks_count=parse_result["chunks_ingested"]
-        ))
+        )
 
         return {
             "status": "processed",
@@ -486,7 +487,7 @@ def delete_manual(filename: str) -> dict:
         vs.delete_images_by_filename(safe_filename)
 
         # 5. Remove from PostgreSQL
-        pg_deleted = _run_async_safely(delete_registered_manual(safe_filename))
+        pg_deleted = _run_async_safely(delete_registered_manual, safe_filename)
 
         # Clear retrieval cache
         try:
@@ -521,7 +522,7 @@ def get_manual_metadata(filename: str) -> dict:
         from app.services.vector_store import VectorStoreService
 
         safe_filename = os.path.basename(filename)
-        record = _run_async_safely(get_manual_by_filename(safe_filename))
+        record = _run_async_safely(get_manual_by_filename, safe_filename)
         vs = VectorStoreService()
         all_sources = vs.get_unique_sources()
         is_in_vectors = safe_filename in all_sources

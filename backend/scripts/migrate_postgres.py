@@ -64,9 +64,9 @@ async def run_migration(rollback: bool = False, custom_url: str = None):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print("  ✓ Schema tables verified (manual_registry, diagnostic_sessions, session_turns).")
+        print("  [OK] Schema tables verified (manual_registry, diagnostic_sessions, session_turns).")
     except Exception as e:
-        print(f"  ✗ Schema creation failed: {e}")
+        print(f"  [ERROR] Schema creation failed: {e}")
         print("  Please verify your POSTGRES_URL credentials in backend/.env.")
         return
 
@@ -113,7 +113,7 @@ async def run_migration(rollback: bool = False, custom_url: str = None):
                     migrated_files += 1
 
                 await session.commit()
-            print(f"  ✓ Migrated {migrated_files} manual record(s) from SQLite registry.db to PostgreSQL.")
+            print(f"  [OK] Migrated {migrated_files} manual record(s) from SQLite registry.db to PostgreSQL.")
         except Exception as e:
             print(f"  ! Warning during SQLite migration: {e}")
     else:
@@ -151,15 +151,15 @@ async def run_migration(rollback: bool = False, custom_url: str = None):
                         ))
                         synced_physical += 1
             await session.commit()
-        print(f"  ✓ Registered {synced_physical} physical manual(s) into PostgreSQL.")
+        print(f"  [OK] Registered {synced_physical} physical manual(s) into PostgreSQL.")
 
     # 4. Final Health Check
     healthy, status, stats = await check_postgres_health()
     print("\n" + "=" * 65)
     print(f"MIGRATION COMPLETE: Status = {status.upper()}")
-    print(f"  • Registered Manuals : {stats.get('manuals_registered', 0)}")
-    print(f"  • Diagnostic Sessions: {stats.get('sessions_stored', 0)}")
-    print(f"  • Session Turns      : {stats.get('total_turns', 0)}")
+    print(f"  * Registered Manuals : {stats.get('manuals_registered', 0)}")
+    print(f"  * Diagnostic Sessions: {stats.get('sessions_stored', 0)}")
+    print(f"  * Session Turns      : {stats.get('total_turns', 0)}")
     print("=" * 65)
 
 
