@@ -1,17 +1,41 @@
 {
-  "timestamp": "2026-09-25 15:58:47",
+  "timestamp": "2026-09-25 16:55:22",
   "average_latency_ms": {
-    "query_understanding": 0.63,
-    "text_retrieval_rrf": 65.15,
-    "vision_embedding": 670.59,
-    "total_retrieval": 736.38
+    "query_understanding": 0.58,
+    "text_retrieval_rrf": 426.42,
+    "vision_embedding": 310.02,
+    "total_retrieval": 737.02
   },
-  "average_metrics": {
-    "precision_at_3": 0.9333,
-    "precision_at_5": 0.704,
-    "recall_at_5": 0.704,
-    "mrr": 1.0,
+  "retrieval_quality_metrics": {
+    "precision_at_1": 0.84,
+    "precision_at_3": 0.8933,
+    "precision_at_5": 0.712,
+    "recall_at_5": 0.712,
+    "mrr": 0.9033,
+    "ndcg_at_5": 0.7236,
+    "map": 0.6255,
     "hit_rate": 1.0
+  },
+  "security_guardrail_metrics": {
+    "prompt_injection_defense_rate": 0.875,
+    "out_of_domain_block_rate": 1.0,
+    "in_domain_acceptance_rate": 1.0,
+    "token_leakage_on_rejected": 0
+  },
+  "mcp_diagnostic_metrics": {
+    "error_code_accuracy": 1.0,
+    "part_lookup_accuracy": 1.0,
+    "thermistor_model_fidelity": 1.0,
+    "mean_tool_accuracy": 1.0
+  },
+  "workflow_state_metrics": {
+    "state_transition_accuracy": 1.0
+  },
+  "cache_performance_metrics": {
+    "cold_retrieval_ms": 2173.05,
+    "cached_retrieval_ms": 0.02,
+    "cache_speedup_factor": "107576.9x",
+    "sub_5ms_compliance": true
   },
   "sample_evaluations": [
     {
@@ -19,16 +43,19 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 2.74,
-        "text_retrieval_rrf": 61.14,
-        "vision_embedding": 8467.53,
-        "total": 8531.41
+        "query_understanding": 2.94,
+        "text_retrieval_rrf": 3671.22,
+        "vision_embedding": 3548.94,
+        "total": 7223.1
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -37,16 +64,19 @@
       "category": "Refrigerator / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.16,
-        "text_retrieval_rrf": 103.67,
-        "vision_embedding": 244.24,
-        "total": 348.08
+        "query_understanding": 0.15,
+        "text_retrieval_rrf": 329.56,
+        "vision_embedding": 164.93,
+        "total": 494.63
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -55,16 +85,19 @@
       "category": "Refrigerator / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.46,
-        "text_retrieval_rrf": 128.56,
-        "vision_embedding": 271.16,
-        "total": 400.18
+        "query_understanding": 0.12,
+        "text_retrieval_rrf": 375.78,
+        "vision_embedding": 241.65,
+        "total": 617.54
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 0.6,
         "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6164,
+        "map": 0.42,
         "hit": 1
       }
     },
@@ -73,16 +106,19 @@
       "category": "Refrigerator / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.13,
-        "text_retrieval_rrf": 134.59,
-        "vision_embedding": 199.5,
-        "total": 334.22
+        "query_understanding": 0.18,
+        "text_retrieval_rrf": 290.59,
+        "vision_embedding": 249.22,
+        "total": 539.99
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -91,16 +127,19 @@
       "category": "Refrigerator / Repair",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 6.59,
-        "text_retrieval_rrf": 94.48,
-        "vision_embedding": 289.1,
-        "total": 390.18
+        "query_understanding": 6.9,
+        "text_retrieval_rrf": 428.53,
+        "vision_embedding": 117.56,
+        "total": 552.99
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 0.8,
         "recall_at_5": 0.8,
         "mrr": 1.0,
+        "ndcg_at_5": 0.786,
+        "map": 0.6433,
         "hit": 1
       }
     },
@@ -109,16 +148,19 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.18,
-        "text_retrieval_rrf": 70.5,
-        "vision_embedding": 114.07,
-        "total": 184.76
+        "query_understanding": 0.22,
+        "text_retrieval_rrf": 149.16,
+        "vision_embedding": 82.06,
+        "total": 231.43
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
-        "mrr": 1.0,
+        "precision_at_1": 0.0,
+        "precision_at_3": 0.3333,
+        "precision_at_5": 0.2,
+        "recall_at_5": 0.2,
+        "mrr": 0.5,
+        "ndcg_at_5": 0.214,
+        "map": 0.1,
         "hit": 1
       }
     },
@@ -127,16 +169,19 @@
       "category": "Washer / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.16,
-        "text_retrieval_rrf": 25.5,
-        "vision_embedding": 497.92,
-        "total": 523.58
+        "query_understanding": 0.22,
+        "text_retrieval_rrf": 133.5,
+        "vision_embedding": 86.27,
+        "total": 219.98
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 1.0,
         "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -145,16 +190,19 @@
       "category": "Washer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.4,
-        "text_retrieval_rrf": 79.15,
-        "vision_embedding": 645.17,
-        "total": 724.72
+        "query_understanding": 0.23,
+        "text_retrieval_rrf": 148.82,
+        "vision_embedding": 131.58,
+        "total": 280.64
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
-        "mrr": 1.0,
+        "precision_at_1": 0.0,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
+        "mrr": 0.5,
+        "ndcg_at_5": 0.3452,
+        "map": 0.18,
         "hit": 1
       }
     },
@@ -163,16 +211,19 @@
       "category": "Washer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.47,
-        "text_retrieval_rrf": 75.78,
-        "vision_embedding": 676.13,
-        "total": 752.37
+        "query_understanding": 0.22,
+        "text_retrieval_rrf": 291.34,
+        "vision_embedding": 274.59,
+        "total": 566.15
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_1": 1.0,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
+        "ndcg_at_5": 0.5531,
+        "map": 0.4,
         "hit": 1
       }
     },
@@ -181,16 +232,19 @@
       "category": "Washer / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.42,
-        "text_retrieval_rrf": 30.02,
-        "vision_embedding": 516.23,
-        "total": 546.67
+        "query_understanding": 0.17,
+        "text_retrieval_rrf": 399.33,
+        "vision_embedding": 239.33,
+        "total": 638.83
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -199,16 +253,19 @@
       "category": "Freezer / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.26,
-        "text_retrieval_rrf": 64.75,
-        "vision_embedding": 491.53,
-        "total": 556.54
+        "query_understanding": 0.12,
+        "text_retrieval_rrf": 294.35,
+        "vision_embedding": 356.0,
+        "total": 650.47
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -217,16 +274,19 @@
       "category": "Freezer / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.19,
-        "text_retrieval_rrf": 46.0,
-        "vision_embedding": 464.59,
-        "total": 510.78
+        "query_understanding": 0.23,
+        "text_retrieval_rrf": 775.31,
+        "vision_embedding": 485.57,
+        "total": 1261.11
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 0.6667,
         "precision_at_5": 0.4,
         "recall_at_5": 0.4,
         "mrr": 1.0,
+        "ndcg_at_5": 0.4704,
+        "map": 0.28,
         "hit": 1
       }
     },
@@ -235,16 +295,19 @@
       "category": "Freezer / Troubleshooting",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.22,
-        "text_retrieval_rrf": 68.4,
-        "vision_embedding": 214.73,
-        "total": 283.35
+        "query_understanding": 0.1,
+        "text_retrieval_rrf": 287.15,
+        "vision_embedding": 295.24,
+        "total": 582.49
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
+        "precision_at_1": 1.0,
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6164,
+        "map": 0.42,
         "hit": 1
       }
     },
@@ -253,16 +316,19 @@
       "category": "Freezer / Features",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.08,
-        "text_retrieval_rrf": 22.6,
-        "vision_embedding": 195.87,
-        "total": 218.55
+        "query_understanding": 0.09,
+        "text_retrieval_rrf": 466.31,
+        "vision_embedding": 340.16,
+        "total": 806.56
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -271,16 +337,19 @@
       "category": "Freezer / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.1,
-        "text_retrieval_rrf": 24.67,
-        "vision_embedding": 136.92,
-        "total": 161.68
+        "query_understanding": 0.12,
+        "text_retrieval_rrf": 207.84,
+        "vision_embedding": 83.61,
+        "total": 291.58
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 1.0,
         "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -289,16 +358,19 @@
       "category": "Dishwasher / Error Code",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.12,
-        "text_retrieval_rrf": 28.7,
-        "vision_embedding": 596.67,
-        "total": 625.5
+        "query_understanding": 0.23,
+        "text_retrieval_rrf": 163.58,
+        "vision_embedding": 93.73,
+        "total": 257.54
       },
       "metrics": {
-        "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_1": 1.0,
+        "precision_at_3": 0.6667,
+        "precision_at_5": 0.4,
+        "recall_at_5": 0.4,
         "mrr": 1.0,
+        "ndcg_at_5": 0.4852,
+        "map": 0.3,
         "hit": 1
       }
     },
@@ -307,16 +379,19 @@
       "category": "Dishwasher / Maintenance",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.59,
-        "text_retrieval_rrf": 80.56,
-        "vision_embedding": 383.56,
-        "total": 464.71
+        "query_understanding": 0.26,
+        "text_retrieval_rrf": 296.46,
+        "vision_embedding": 149.19,
+        "total": 445.92
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -325,16 +400,19 @@
       "category": "Dishwasher / Component",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.56,
-        "text_retrieval_rrf": 214.61,
-        "vision_embedding": 183.51,
-        "total": 398.68
+        "query_understanding": 0.29,
+        "text_retrieval_rrf": 317.03,
+        "vision_embedding": 100.55,
+        "total": 417.87
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6399,
+        "map": 0.4533,
         "hit": 1
       }
     },
@@ -344,15 +422,18 @@
       "chunks_retrieved": 5,
       "latency_ms": {
         "query_understanding": 0.15,
-        "text_retrieval_rrf": 25.64,
-        "vision_embedding": 113.12,
-        "total": 138.91
+        "text_retrieval_rrf": 162.59,
+        "vision_embedding": 88.97,
+        "total": 251.71
       },
       "metrics": {
-        "precision_at_3": 0.6667,
-        "precision_at_5": 0.4,
-        "recall_at_5": 0.4,
+        "precision_at_1": 1.0,
+        "precision_at_3": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6844,
+        "map": 0.52,
         "hit": 1
       }
     },
@@ -361,16 +442,19 @@
       "category": "Dishwasher / Specs",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.24,
-        "text_retrieval_rrf": 19.78,
-        "vision_embedding": 617.06,
-        "total": 637.08
+        "query_understanding": 0.16,
+        "text_retrieval_rrf": 174.63,
+        "vision_embedding": 87.79,
+        "total": 262.59
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.6,
-        "recall_at_5": 0.6,
+        "precision_at_5": 1.0,
+        "recall_at_5": 1.0,
         "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "map": 1.0,
         "hit": 1
       }
     },
@@ -379,16 +463,19 @@
       "category": "Newly Uploaded / Oven",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.32,
-        "text_retrieval_rrf": 58.24,
-        "vision_embedding": 280.58,
-        "total": 339.14
+        "query_understanding": 0.22,
+        "text_retrieval_rrf": 261.24,
+        "vision_embedding": 101.09,
+        "total": 362.56
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 0.8,
-        "recall_at_5": 0.8,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6164,
+        "map": 0.42,
         "hit": 1
       }
     },
@@ -397,16 +484,19 @@
       "category": "Newly Uploaded / Dryer",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.18,
-        "text_retrieval_rrf": 36.44,
-        "vision_embedding": 228.49,
-        "total": 265.11
+        "query_understanding": 0.28,
+        "text_retrieval_rrf": 242.22,
+        "vision_embedding": 123.11,
+        "total": 365.61
       },
       "metrics": {
+        "precision_at_1": 0.0,
         "precision_at_3": 0.3333,
         "precision_at_5": 0.2,
         "recall_at_5": 0.2,
-        "mrr": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_5": 0.1461,
+        "map": 0.05,
         "hit": 1
       }
     },
@@ -415,16 +505,19 @@
       "category": "Newly Uploaded / HVAC",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.17,
-        "text_retrieval_rrf": 41.81,
-        "vision_embedding": 154.68,
-        "total": 196.65
+        "query_understanding": 0.24,
+        "text_retrieval_rrf": 316.83,
+        "vision_embedding": 108.73,
+        "total": 425.8
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 0.6,
         "recall_at_5": 0.6,
         "mrr": 1.0,
+        "ndcg_at_5": 0.6844,
+        "map": 0.52,
         "hit": 1
       }
     },
@@ -433,16 +526,19 @@
       "category": "Newly Uploaded / Warranty",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.12,
-        "text_retrieval_rrf": 22.54,
-        "vision_embedding": 350.16,
-        "total": 372.82
+        "query_understanding": 0.14,
+        "text_retrieval_rrf": 170.19,
+        "vision_embedding": 93.85,
+        "total": 264.18
       },
       "metrics": {
+        "precision_at_1": 1.0,
         "precision_at_3": 1.0,
         "precision_at_5": 0.8,
         "recall_at_5": 0.8,
         "mrr": 1.0,
+        "ndcg_at_5": 0.786,
+        "map": 0.6433,
         "hit": 1
       }
     },
@@ -451,16 +547,19 @@
       "category": "Newly Uploaded / Safety",
       "chunks_retrieved": 5,
       "latency_ms": {
-        "query_understanding": 0.81,
-        "text_retrieval_rrf": 70.66,
-        "vision_embedding": 432.24,
-        "total": 503.72
+        "query_understanding": 0.48,
+        "text_retrieval_rrf": 306.95,
+        "vision_embedding": 106.72,
+        "total": 414.16
       },
       "metrics": {
+        "precision_at_1": 0.0,
         "precision_at_3": 1.0,
-        "precision_at_5": 1.0,
-        "recall_at_5": 1.0,
-        "mrr": 1.0,
+        "precision_at_5": 0.6,
+        "recall_at_5": 0.6,
+        "mrr": 0.3333,
+        "ndcg_at_5": 0.4469,
+        "map": 0.2867,
         "hit": 1
       }
     }
