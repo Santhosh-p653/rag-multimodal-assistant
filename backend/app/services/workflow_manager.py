@@ -66,10 +66,11 @@ async def process_troubleshoot_turn(session_id: str, message: str) -> Dict[str, 
         
         # Retrieve context manuals matching product and issue
         print(f"[Workflow] Retrieving context for product '{product}' and issue '{issue}'...")
-        context_chunks = retrieve_context(
+        retrieved = retrieve_context(
             query=f"{product} {issue} troubleshooting",
             query_entities={"product": product, "model": product}
         )
+        context_chunks = retrieved[0] if isinstance(retrieved, tuple) else retrieved
         
         session["context"] = context_chunks
         session["status"] = "DIAGNOSE"

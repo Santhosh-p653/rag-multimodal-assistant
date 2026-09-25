@@ -465,7 +465,7 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
     from app.services.embedder import EmbedderService
     
     chunks = state.get("retrieved_chunks", [])
-    if not chunks:
+    if not chunks or state.get("retrieval_confidence") == "LOW":
         return {"images": []}
         
     candidates = []
@@ -519,8 +519,10 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
             p_num = img.get("page_number", 0)
             score = 0.0
             
-            # Direct hit on page containing relevant text chunk
-            if p_num in retrieved_pages:
+            # Direct hit if chunk explicitly references this image ID or page matches
+            if any(img.get("image_id") in chunk.get("image_ids", []) for chunk in chunks):
+                score += 0.60
+            elif p_num in retrieved_pages:
                 score += 0.55
             elif p_num in section_pages:
                 score += 0.35
