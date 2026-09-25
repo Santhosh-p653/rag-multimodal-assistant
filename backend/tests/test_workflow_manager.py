@@ -18,13 +18,14 @@ def test_workflow_manager_unknown_product(clean_session):
     """When product cannot be identified, ask the user for product model."""
     session_id = clean_session
     
-    async def run():
-        res = await process_troubleshoot_turn(session_id, "My machine is making a loud buzzing sound")
-        assert res["status"] == "question"
-        assert "specify which product model" in res["question"] or "model" in res["question"].lower()
-        assert res["session"]["status"] == "IDENTIFY_PRODUCT"
+    with patch("app.services.workflow_manager.identify_product", return_value={"product": None}):
+        async def run():
+            res = await process_troubleshoot_turn(session_id, "My machine is making a loud buzzing sound")
+            assert res["status"] == "question"
+            assert "specify which product model" in res["question"] or "model" in res["question"].lower()
+            assert res["session"]["status"] == "IDENTIFY_PRODUCT"
     
-    asyncio.run(run())
+        asyncio.run(run())
 
 
 def test_workflow_manager_ollama_troubleshoot_flow(clean_session):

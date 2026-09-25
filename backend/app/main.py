@@ -329,7 +329,7 @@ async def chat(payload: ChatRequest, request: Request):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
         )
 
     from app.config import MAX_CLARIFICATION_ATTEMPTS
@@ -370,7 +370,7 @@ async def chat(payload: ChatRequest, request: Request):
         if is_out_of_domain(resolved_query):
             raise HTTPException(
                 status_code=400,
-                detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+                detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
             )
 
         if res_conf == "LOW":
@@ -468,7 +468,7 @@ async def chat_stream(request: Request, payload: ChatRequest):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
         )
 
     chunks, confidence = retrieve_context(payload.message, source_file=payload.source_file)
@@ -675,7 +675,7 @@ async def troubleshoot(payload: TroubleshootRequest, request: Request):
     if is_out_of_domain(payload.message):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
         )
 
     from app.services.workflow_manager import process_troubleshoot_turn
@@ -698,7 +698,7 @@ async def agent_run(payload: AgentRequest, request: Request):
     if is_out_of_domain(payload.query):
         raise HTTPException(
             status_code=400,
-            detail="I am specialized strictly in refrigerator and cooling appliance technical support. Please ask a query related to your refrigerator manual."
+            detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
         )
         
     session_id = payload.session_id

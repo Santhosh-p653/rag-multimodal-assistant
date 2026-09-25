@@ -37,7 +37,7 @@ async def process_troubleshoot_turn(session_id: str, message: str) -> Dict[str, 
             session_store.save(session_id, session)
             return {
                 "status": "question",
-                "question": "Could you please specify which product model you are troubleshooting (e.g. X100, A200)?",
+                "question": "Could you please specify which product model or vehicle you are troubleshooting (e.g. X100, A200, Toyota Camry)?",
                 "session": session
             }
 
@@ -55,7 +55,7 @@ async def process_troubleshoot_turn(session_id: str, message: str) -> Dict[str, 
             session_store.save(session_id, session)
             return {
                 "status": "question",
-                "question": "I couldn't detect the product model. Please enter the model number (e.g. X100, A200, B300) to retrieve the correct manual.",
+                "question": "I couldn't detect the product or vehicle model. Please enter the model number (e.g. X100, A200, Toyota Camry) to retrieve the correct manual.",
                 "session": session
             }
 

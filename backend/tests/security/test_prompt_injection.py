@@ -41,7 +41,7 @@ def test_prompt_injection_detection():
 
 def test_out_of_domain_queries():
     out_of_domain_payloads = [
-        "How do I change the oil in my car engine?",
+        "What are the best stocks or crypto to invest in right now?",
         "Give me a recipe for baking a chocolate cake",
         "What is the weather forecast for London tomorrow?",
         "How do I fix a washing machine error code?",
@@ -69,6 +69,26 @@ def test_out_of_domain_queries():
 
         # Guarantee 0 LLM API tokens spent on off-topic requests
         mock_llm.assert_not_called()
+
+
+def test_dual_domain_in_bounds():
+    """Verify both Refrigerator and Automobile queries pass prompt guard checks."""
+    from app.services.prompt_guard import is_out_of_domain
+
+    in_domain_queries = [
+        # Refrigerator domain
+        "Why is my refrigerator not cooling?",
+        "Defrost heater replacement for GE Profile freezer",
+        "Error ER FF on French Door fridge",
+        # Automobile domain
+        "How do I fix diagnostic trouble code P0300 on my Toyota Camry?",
+        "Why is my car engine overheating and how to check the radiator?",
+        "Brake pad replacement steps for Ford F-150",
+        "How do I test the oxygen sensor or alternator with a multimeter?",
+    ]
+
+    for q in in_domain_queries:
+        assert not is_out_of_domain(q), f"Query should be in-domain: '{q}'"
 
 
 def test_safe_messages():
