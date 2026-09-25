@@ -15,7 +15,11 @@ sys.modules['slowapi'] = Mock(Limiter=Mock(return_value=m))
 sys.modules['slowapi.util'] = Mock()
 sys.modules['slowapi.errors'] = Mock()
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "backend")))
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend"))
+if not os.path.exists(backend_path):
+    backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "backend"))
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
 
 from app.main import chat, ChatRequest, agent_run, AgentRequest
 from app.config import RRF_HIGH_THRESHOLD, RRF_LOW_THRESHOLD

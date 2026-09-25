@@ -1,0 +1,11 @@
+Multimodal RAG Assistant Test Manual
+====================================
+
+This is a test document used to verify the document parsing and ingestion service of the Multimodal RAG Assistant.
+
+System Requirements:
+- Python 3.11+
+- Node.js LTS
+- Next.js and FastAPI
+
+Verify that MarkItDown converts this text document to markdown successfully!

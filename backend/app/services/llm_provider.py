@@ -163,14 +163,40 @@ class LLMProvider:
                 from groq import Groq
 
                 client = Groq(api_key=settings.GROQ_API_KEY)
-                effective_model = cloud_model or "groq/compound-mini"
+                effective_model = cloud_model or getattr(settings, "LLM_MODEL", "") or "qwen/qwen3.8-27b"
+                if effective_model == "groq/compound-mini":
+                    effective_model = "qwen/qwen3.8-27b"
+
                 logger.info(f"[LLMProvider] Attempting Groq cloud fallback: model='{effective_model}', task='{task}'")
-                response = client.chat.completions.create(
-                    model=effective_model,
-                    messages=messages,
-                    temperature=temperature if temperature is not None else 0.2,
-                    max_tokens=max_tokens if max_tokens is not None else 1024,
-                )
+                try:
+                    response = client.chat.completions.create(
+                        model=effective_model,
+                        messages=messages,
+                        temperature=temperature if temperature is not None else 0.2,
+                        max_tokens=max_tokens if max_tokens is not None else 1024,
+                    )
+                except Exception as model_err:
+                    alt_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]
+                    succeeded = False
+                    for alt in alt_models:
+                        if alt == effective_model:
+                            continue
+                        try:
+                            logger.warning(f"[LLMProvider] Retrying Groq with alternate model: '{alt}'")
+                            response = client.chat.completions.create(
+                                model=alt,
+                                messages=messages,
+                                temperature=temperature if temperature is not None else 0.2,
+                                max_tokens=max_tokens if max_tokens is not None else 1024,
+                            )
+                            effective_model = alt
+                            succeeded = True
+                            break
+                        except Exception:
+                            continue
+                    if not succeeded:
+                        raise model_err
+
                 content = response.choices[0].message.content.strip()
                 self.last_provider_used = "groq"
                 self.last_model_used = effective_model
@@ -181,7 +207,11 @@ class LLMProvider:
             except Exception as exc:
                 logger.exception("[LLMProvider] Groq cloud fallback failed: %s", exc)
                 print(f"[LLMProvider] Groq cloud fallback failed: {exc}")
-                raise
+                if settings.SAMBANOVA_API_KEY:
+                    logger.info("[LLMProvider] Attempting secondary fallback to SambaNova...")
+                    cloud_provider = "sambanova"
+                else:
+                    raise
 
         elif cloud_provider == "sambanova":
             try:
@@ -286,3 +316,7 @@ def generate(
         images=images,
         **kwargs,
     )
+
+
+# Backward-compatible alias
+call_llm = generate
