@@ -64,6 +64,8 @@ class AgentState(TypedDict):
     clarification_options: Optional[List[str]]
     # Phase 2 fields
     session_id: Optional[str]
+    language: Optional[str]
+    raw_query: Optional[str]
     input_confidence: str
     retrieval_confidence: str
     clarification_question: Optional[str]
@@ -306,7 +308,8 @@ def reconstruct_context_node(state: AgentState) -> Dict[str, Any]:
 
 def analyze_input_node(state: AgentState) -> Dict[str, Any]:
     query_to_analyze = state.get("resolved_query") or state["query"]
-    understood = understand_query(query_to_analyze)
+    hint_lang = state.get("language") or "auto"
+    understood = understand_query(query_to_analyze, hint_language=hint_lang)
     normalized_q = str(understood.get("normalized_query", "")).strip()
     placeholder_indicators = [
         "corrected, clear",
@@ -321,10 +324,15 @@ def analyze_input_node(state: AgentState) -> Dict[str, Any]:
     else:
         final_query = normalized_q
 
+    detected_lang = understood.get("language", "en")
+    effective_lang = detected_lang if detected_lang != "en" else (hint_lang if hint_lang != "auto" else "en")
+
     return {
         "input_confidence": understood.get("input_confidence", "LOW"),
         "understood_data": understood,
-        "query": final_query
+        "query": final_query,
+        "raw_query": state.get("raw_query") or query_to_analyze,
+        "language": effective_lang
     }
 
 def clarify_or_fallback_node(state: AgentState) -> Dict[str, Any]:
@@ -654,13 +662,49 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
     print(f"[AgentFlow] Returning {len(images_out)} related diagram visuals: {[i['image_id'] for i in images_out]}")
     return {"images": images_out}
 
+def _safe_log(msg: str):
+    try:
+        print(msg)
+    except Exception:
+        try:
+            print(msg.encode("ascii", errors="replace").decode("ascii"))
+        except Exception:
+            pass
+
+
 def generate(state: AgentState) -> Dict[str, Any]:
     chunks = state["retrieved_chunks"]
     query = state["query"]
     mode = state["mode"]
+    raw_q = state.get("raw_query") or query
+
+    target_lang = state.get("language") or "en"
+    has_tamil = any("\u0b80" <= ch <= "\u0bff" for ch in raw_q)
+    has_hindi = any("\u0900" <= ch <= "\u097f" for ch in raw_q)
+    if has_tamil or target_lang == "ta":
+        target_lang = "ta"
+    elif has_hindi or target_lang == "hi":
+        target_lang = "hi"
+
+    lang_directive = ""
+    fallback_msg = "I could not find that information in the uploaded manuals."
+    if target_lang == "ta":
+        fallback_msg = "பதிவேற்றப்பட்ட கையேடுகளில் அந்தத் தகவலைக் கண்டுபிடிக்க முடியவில்லை."
+        lang_directive = (
+            "\n\nCRITICAL LANGUAGE INSTRUCTION: The user query is in Tamil (தமிழ்). "
+            "You MUST explain and generate the complete response in natural, fluent Tamil using Tamil script (தமிழ் எழுத்துக்கள்). "
+            "Do NOT respond in English. Model numbers and engineering ratings (e.g. 115V AC, 60Hz, kOhm) can remain in alphanumeric format, but all sentences, bullet points, and steps must be in Tamil."
+        )
+    elif target_lang == "hi":
+        fallback_msg = "अपलोड किए गए मैनुअल में मुझे वह जानकारी नहीं मिली।"
+        lang_directive = (
+            "\n\nCRITICAL LANGUAGE INSTRUCTION: The user query is in Hindi (हिंदी). "
+            "You MUST explain and generate the complete response in natural, fluent Hindi using Devanagari script (देवनागरी लिपि). "
+            "Do NOT respond in English. Model numbers and engineering ratings can remain in alphanumeric format, but all sentences, bullet points, and steps must be in Hindi."
+        )
 
     if not chunks:
-        return {"answer": "I could not find that information in the uploaded manuals."}
+        return {"answer": fallback_msg}
 
     context_str = "\n\n".join([f"--- Source: {c['source']} (Page {c.get('page')}) ---\n{c['content']}" for c in chunks])
     
@@ -669,16 +713,16 @@ def generate(state: AgentState) -> Dict[str, Any]:
         hedge_note = "\n\nNote: The context provided may only partially cover the question. Please hedge your answer and note any uncertainty."
 
     if mode == "qa":
-        prompt = f"""You are a technical support assistant. Answer the user's question concisely and directly using only the provided context. Bold important directions, settings, or parameters (e.g. **counter-clockwise**). If the answer cannot be found in the context, say "I could not find that information in the uploaded manuals."
+        prompt = f"""You are a technical support assistant. Answer the user's question concisely and directly using only the provided context. Bold important directions, settings, or parameters (e.g. **counter-clockwise**). If the answer cannot be found in the context, say "{fallback_msg}".
 Context:
 {context_str}
 
-User Question: {query}\nAnswer:""" + hedge_note
-        print(f"[AgentFlow DEBUG] generate prompt:\n{prompt}")
+User Question: {raw_q} (Semantic meaning: {query})\nAnswer:""" + hedge_note + lang_directive
+        _safe_log(f"[AgentFlow DEBUG] generate prompt:\n{prompt}")
         answer = call_llm(prompt, task="chat")
         # Normalize hyphenation for counter-clockwise
         answer = re.sub(r'\bcounterclockwise\b', 'counter-clockwise', answer, flags=re.IGNORECASE)
-        print(f"[AgentFlow DEBUG] generate answer:\n{answer}")
+        _safe_log(f"[AgentFlow DEBUG] generate answer:\n{answer}")
         return {"answer": answer}
     else:
         prompt = f"""You are a technical support diagnostic assistant. Analyze the context and provide a step-by-step diagnostic guide for the user's troubleshooting issue.
@@ -688,15 +732,15 @@ Generate your response strictly as a JSON object with two fields:
 
 Example format:
 {{
-  "answer": "This is an ink cartridge failure.",
-  "steps": ["Step 1: Turn off the printer", "Step 2: Check carriage..."]
+  "answer": "...",
+  "steps": ["Step 1: ...", "Step 2: ..."]
 }}
 
-Return only valid JSON. Do not write any markdown, backticks, or other text outside the JSON.
+Return only valid JSON. Do not write any markdown, backticks, or other text outside the JSON.{lang_directive}
 Context:
 {context_str}
 
-User Query: {query}""" + hedge_note
+User Query: {raw_q} (Semantic meaning: {query})""" + hedge_note
         response_text = call_llm(prompt, task="workflow")
         cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
 

@@ -30,13 +30,25 @@ VOICE_TABLE = {
 
 SARVAM_LANG_MAP = {
     "en": "en-IN",
+    "en-in": "en-IN",
     "hi": "hi-IN",
+    "hi-in": "hi-IN",
     "ta": "ta-IN",
+    "ta-in": "ta-IN",
     "te": "te-IN",
+    "te-in": "te-IN",
     "kn": "kn-IN",
+    "kn-in": "kn-IN",
     "ml": "ml-IN",
+    "ml-in": "ml-IN",
     "bn": "bn-IN",
+    "bn-in": "bn-IN",
     "mr": "mr-IN",
+    "mr-in": "mr-IN",
+    "gu": "gu-IN",
+    "gu-in": "gu-IN",
+    "pa": "pa-IN",
+    "pa-in": "pa-IN",
     "auto": "unknown",
 }
 
@@ -93,69 +105,100 @@ def convert_to_wav(input_path: str) -> str:
 
 
 async def transcribe_audio(file_path: str, hint_lang: str) -> dict:
+    """
+    Hybrid STT pipeline:
+    - Indic languages (Tamil, Hindi, etc.): Primary Sarvam AI (saaras:v3) with faster-whisper fallback
+    - English: Primary faster-whisper local model with Sarvam en-IN fallback
+    - Auto / Unknown: Sarvam AI with faster-whisper fallback
+    """
     transcoded_path = convert_to_wav(file_path)
 
+    clean_hint = (hint_lang or "auto").strip().lower()
+    base_lang = clean_hint.split("-")[0]
+
     try:
-        if hint_lang == "en":
-            try:
-                model = get_whisper_model()
-                segments, info = model.transcribe(transcoded_path, beam_size=5)
-                text = " ".join([s.text for s in segments]).strip()
-                return {"text": text, "detected_language": info.language}
-            except Exception as w_err:
-                active_sarvam_key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY", "")
-                if not active_sarvam_key:
-                    raise w_err
-                # Fall back to Sarvam en-IN
-                hint_lang = "en"
+        active_key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY", "")
 
-        active_key = SARVAM_API_KEY
-        if not active_key:
-            raise RuntimeError("SARVAM_API_KEY not configured")
+        # 1. Primary path for Indic languages (or auto if Sarvam key available)
+        if base_lang in INDIC_LANGUAGES or (base_lang in ("auto", "unknown") and active_key):
+            sarvam_lang = SARVAM_LANG_MAP.get(clean_hint, SARVAM_LANG_MAP.get(base_lang, "unknown"))
+            if active_key:
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        with open(transcoded_path, "rb") as audio_file:
+                            audio_content = audio_file.read()
+                            response = await client.post(
+                                "https://api.sarvam.ai/speech-to-text",
+                                files={
+                                    "file": (
+                                        os.path.basename(transcoded_path),
+                                        audio_content,
+                                        "audio/wav",
+                                    )
+                                },
+                                data={
+                                    "model": "saaras:v3",
+                                    "mode": "transcribe",
+                                    "language_code": sarvam_lang,
+                                },
+                                headers={"api-subscription-key": active_key},
+                            )
 
-        sarvam_lang = SARVAM_LANG_MAP.get(hint_lang, "unknown")
+                    if response.status_code == 200:
+                        res_data = response.json()
+                        transcript = res_data.get("transcript", "").strip()
+                        sarvam_code = res_data.get("language_code")
+                        detected_lang = base_lang if base_lang not in ("auto", "unknown") else "en"
 
-        async with httpx.AsyncClient() as client:
-            with open(transcoded_path, "rb") as audio_file:
-                audio_content = audio_file.read()
-                response = await client.post(
-                    "https://api.sarvam.ai/speech-to-text",
-                    files={
-                        "file": (
-                            os.path.basename(transcoded_path),
-                            audio_content,
-                            "audio/wav"
-                        )
-                    },
-                    data={
-                        "model": "saaras:v3",
-                        "mode": "transcribe",
-                        "language_code": sarvam_lang,
-                    },
-                    headers={"api-subscription-key": active_key},
-                    timeout=30.0,
-                )
+                        if sarvam_code and sarvam_code != "unknown":
+                            detected_lang = sarvam_code.split("-")[0].lower()
+                        elif transcript:
+                            script_l = detect_script_language(transcript)
+                            if script_l:
+                                detected_lang = script_l
+                            else:
+                                try:
+                                    detected_lang = detect(transcript)
+                                except Exception:
+                                    pass
 
-        if response.status_code != 200:
-            raise RuntimeError(f"Sarvam API error: {response.text}")
+                        return {
+                            "text": transcript,
+                            "detected_language": detected_lang,
+                        }
+                    else:
+                        logger.warning(f"[Audio] Sarvam STT returned status {response.status_code}: {response.text}")
+                except Exception as s_err:
+                    logger.warning(f"[Audio] Sarvam STT request failed, trying faster-whisper: {s_err}")
 
-        res_data = response.json()
-        transcript = res_data.get("transcript", "")
-
-        detected_lang = hint_lang
-        sarvam_code = res_data.get("language_code")
-        if sarvam_code and sarvam_code != "unknown":
-            detected_lang = sarvam_code.split("-")[0].lower()
-        elif hint_lang == "auto" and transcript:
-            try:
-                detected_lang = detect(transcript)
-            except Exception:
-                detected_lang = "unknown"
-
-        return {
-            "text": transcript.strip(),
-            "detected_language": detected_lang,
-        }
+        # 2. Faster-whisper engine (primary for English, robust fallback for Indic/auto)
+        try:
+            model = get_whisper_model()
+            whisper_lang = None if base_lang in ("auto", "unknown") else base_lang
+            segments, info = model.transcribe(transcoded_path, beam_size=5, language=whisper_lang)
+            text = " ".join([s.text for s in segments]).strip()
+            return {
+                "text": text,
+                "detected_language": info.language if info else base_lang,
+            }
+        except Exception as w_err:
+            logger.error(f"[Audio] faster-whisper transcription error: {w_err}")
+            # Final fallback to Sarvam en-IN if whisper crashed on English
+            if active_key and base_lang == "en":
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        with open(transcoded_path, "rb") as audio_file:
+                            response = await client.post(
+                                "https://api.sarvam.ai/speech-to-text",
+                                files={"file": (os.path.basename(transcoded_path), audio_file.read(), "audio/wav")},
+                                data={"model": "saaras:v3", "mode": "transcribe", "language_code": "en-IN"},
+                                headers={"api-subscription-key": active_key},
+                            )
+                        if response.status_code == 200:
+                            return {"text": response.json().get("transcript", "").strip(), "detected_language": "en"}
+                except Exception:
+                    pass
+            raise RuntimeError(f"Transcription failed across all available STT engines: {w_err}")
 
     finally:
         if os.path.exists(transcoded_path):
@@ -248,21 +291,35 @@ def truncate_text(text: str, max_sentences: int = 3) -> str:
 
 def detect_language(text: str, hint_language: Optional[str] = None) -> str:
     """
-    Resolves the intended language using hint, Unicode script inspection, and fallback statistical detection.
+    Resolves the intended language using script inspection first, statistical detection,
+    and hint fallback. Never forces an Indic voice on pure English/Latin text.
     """
-    if hint_language and hint_language not in ("auto", "unknown"):
-        return hint_language.split("-")[0].lower()
+    if not text:
+        return "en"
 
+    # 1. Exact Unicode script detection takes highest priority
     script_lang = detect_script_language(text)
     if script_lang:
         return script_lang
 
+    # 2. Check if text is predominantly ASCII/Latin
+    is_pure_ascii = all(ord(c) < 128 for c in text.replace("\n", " ").strip())
+    if is_pure_ascii:
+        return "en"
+
+    # 3. Statistical detection on non-script text
     try:
         detected = detect(text)
         if detected in VOICE_TABLE:
             return detected
     except Exception:
         pass
+
+    # 4. If hint language is given and valid
+    if hint_language and hint_language not in ("auto", "unknown"):
+        clean_hint = hint_language.split("-")[0].lower()
+        if clean_hint in VOICE_TABLE:
+            return clean_hint
 
     return "en"
 
@@ -283,8 +340,8 @@ async def speak_text(text: str, language: Optional[str] = None) -> tuple[bytes, 
 
     # 1. Attempt Sarvam AI Text-to-Speech for supported Indian languages
     active_key = SARVAM_API_KEY or os.getenv("SARVAM_API_KEY", "")
-    if active_key and lang_key in INDIC_LANGUAGES and lang_key in SARVAM_LANG_MAP:
-        sarvam_code = SARVAM_LANG_MAP.get(lang_key)
+    if active_key and lang_key in INDIC_LANGUAGES:
+        sarvam_code = SARVAM_LANG_MAP.get(lang_key, f"{lang_key}-IN")
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 res = await client.post(
@@ -315,8 +372,9 @@ async def speak_text(text: str, language: Optional[str] = None) -> tuple[bytes, 
     voice = VOICE_TABLE.get(lang_key, "en-IN-NeerjaNeural")
     communicate = edge_tts.Communicate(truncated, voice)
 
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
-        tmp_path = tmp.name
+    import uuid
+    temp_dir = tempfile.gettempdir()
+    tmp_path = os.path.join(temp_dir, f"tts_speech_{uuid.uuid4().hex}.mp3")
 
     try:
         await communicate.save(tmp_path)
@@ -324,4 +382,7 @@ async def speak_text(text: str, language: Optional[str] = None) -> tuple[bytes, 
             return f.read(), "audio/mpeg"
     finally:
         if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass

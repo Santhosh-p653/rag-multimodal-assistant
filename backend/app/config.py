@@ -42,6 +42,12 @@ class Settings:
     QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "manuals")
     QDRANT_PATH: str = os.getenv("QDRANT_PATH", "data_sandbox/qdrant_db")
 
+    # --- PostgreSQL Relational Store ---
+    POSTGRES_URL: str = os.getenv(
+        "POSTGRES_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/octo_rag"
+    )
+
     # --- RAG Parameters ---
     TOP_K: int = 5
     SCORE_THRESHOLD: float = 0.0
@@ -107,5 +113,6 @@ VISION_TOP_K = settings.VISION_TOP_K
 VISION_SCORE_THRESHOLD = settings.VISION_SCORE_THRESHOLD
 ENABLE_VISION_SEARCH = settings.ENABLE_VISION_SEARCH
 ENABLE_VISION_INDEXING = settings.ENABLE_VISION_INDEXING
+POSTGRES_URL = settings.POSTGRES_URL
 
 

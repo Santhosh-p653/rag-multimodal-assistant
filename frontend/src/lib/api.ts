@@ -27,7 +27,8 @@ export interface UploadResponse {
 export async function sendMessage(
   message: string,
   sourceFile: string | null = null,
-  sessionId?: string | null
+  sessionId?: string | null,
+  language?: string | null
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_URL}/agent/run`, {
     method: "POST",
@@ -36,6 +37,7 @@ export async function sendMessage(
       query: message,
       source_input: sourceFile,
       session_id: sessionId || undefined,
+      language: language && language !== "auto" ? language : undefined,
     }),
   });
 
@@ -248,4 +250,50 @@ export async function deleteSessionBackend(sessionId: string): Promise<void> {
     console.warn("Backend session delete failed:", err);
   }
 }
+
+// ─── PostgreSQL Audit & Manual Registry Helpers ───────────────────────────
+
+export interface AuditTurn {
+  id: number;
+  session_id: string;
+  sender: string;
+  message_text: string;
+  question?: string | null;
+  action?: string | null;
+  created_at?: string;
+}
+
+export interface AuditSummary {
+  total_sessions: number;
+  total_turns: number;
+  total_manuals: number;
+  recent_activity: AuditTurn[];
+}
+
+export interface ManualRecord {
+  id: number;
+  filename: string;
+  equipment_type: string;
+  model?: string | null;
+  file_hash: string;
+  chunks_count: number;
+  created_at?: string;
+}
+
+export async function fetchAuditSummary(): Promise<AuditSummary> {
+  const response = await fetch(`${API_URL}/admin/audit`);
+  if (!response.ok) {
+    throw new Error("Failed to retrieve audit summary from backend");
+  }
+  return response.json();
+}
+
+export async function fetchManualRegistry(): Promise<{ files: string[]; registry: ManualRecord[] }> {
+  const response = await fetch(`${API_URL}/files`);
+  if (!response.ok) {
+    throw new Error("Failed to retrieve manual registry");
+  }
+  return response.json();
+}
+
 

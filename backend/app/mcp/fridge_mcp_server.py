@@ -300,6 +300,22 @@ def run_octo_agent(query: str, source_input: str = "", session_id: str = "") -> 
         return {"answer": f"Agent workflow execution failed: {str(e)}", "status": "error"}
 
 
+def _run_async_safely(coro):
+    """Safely run async coroutine from synchronous MCP tool regardless of event loop state."""
+    import asyncio
+    import concurrent.futures
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            return executor.submit(lambda: asyncio.run(coro)).result()
+    else:
+        return asyncio.run(coro)
+
+
 # --- Stateful Troubleshooting Turn Tool ---
 @mcp.tool()
 def troubleshoot_appliance_turn(session_id: str, message: str) -> dict:
@@ -315,27 +331,221 @@ def troubleshoot_appliance_turn(session_id: str, message: str) -> dict:
         Dictionary containing current state, next diagnostic question/action, options, and status.
     """
     try:
-        import asyncio
         from app.services.workflow_manager import process_troubleshoot_turn
-
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        if loop.is_running():
-            import nest_asyncio
-            nest_asyncio.apply()
-            result = loop.run_until_complete(process_troubleshoot_turn(session_id, message))
-        else:
-            result = loop.run_until_complete(process_troubleshoot_turn(session_id, message))
-
-        return result
+        return _run_async_safely(process_troubleshoot_turn(session_id, message))
     except Exception as e:
         return {"answer": f"Troubleshooting turn failed: {str(e)}", "status": "error"}
+
+
+# --- Files MCP Tools (Relational PostgreSQL + Qdrant Vector Engine) ---
+
+@mcp.tool()
+def list_manuals() -> dict:
+    """
+    List all technical manuals currently registered in PostgreSQL manual_registry
+    and available in the Qdrant hybrid vector store.
+
+    Returns:
+        Structured JSON dictionary containing registered manuals, chunk counts, hashes, and total count.
+    """
+    try:
+        from app.database.postgres import list_registered_manuals
+        from app.services.vector_store import VectorStoreService
+
+        pg_manuals = _run_async_safely(list_registered_manuals())
+        vs = VectorStoreService()
+        vector_sources = vs.get_unique_sources()
+
+        return {
+            "status": "success",
+            "count": len(pg_manuals) if pg_manuals else len(vector_sources),
+            "manuals": pg_manuals,
+            "vector_sources": vector_sources
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "manuals": [], "count": 0}
+
+
+@mcp.tool()
+def upload_manual(
+    filename: str,
+    content_base64: str,
+    equipment_type: str = "industrial",
+    model: str = ""
+) -> dict:
+    """
+    Upload and index a technical equipment or vehicle manual via MCP.
+    Performs MD5 duplicate check in PostgreSQL, converts/chunks document, embeds vectors into Qdrant,
+    and registers in PostgreSQL manual_registry.
+
+    Args:
+        filename: Name of the manual file (e.g. 'Haas_CNC_VF2.pdf' or 'Toyota_Camry_2022.pdf').
+        content_base64: Base64-encoded raw binary contents of the manual document.
+        equipment_type: Equipment domain category ('industrial', 'automobile', 'appliance').
+        model: Optional specific model identifier.
+
+    Returns:
+        Structured JSON dictionary with ingestion status, chunks count, markdown path, and registry details.
+    """
+    try:
+        import base64
+        from app.services.parser import ParserService
+        from app.database.postgres import check_manual_duplicate_by_hash, register_manual
+
+        file_bytes = base64.b64decode(content_base64)
+        if not file_bytes:
+            return {"status": "error", "error": "Decoded file content is empty"}
+
+        # Check duplicate
+        dup = _run_async_safely(check_manual_duplicate_by_hash(file_bytes))
+        if dup:
+            return {
+                "status": "skipped_duplicate",
+                "filename": filename,
+                "message": f"Identical file hash already indexed for {dup.get('filename')}",
+                "chunks_ingested": dup.get("chunks_count", 0),
+                "file_hash": dup.get("file_hash")
+            }
+
+        # Parse, chunk, and vectorize
+        parser = ParserService()
+        parse_result = parser.parse_file(filename, file_bytes)
+
+        # Register in PostgreSQL
+        reg_result = _run_async_safely(register_manual(
+            filename=filename,
+            file_bytes=file_bytes,
+            equipment_type=equipment_type,
+            model=model if model else None,
+            chunks_count=parse_result["chunks_ingested"]
+        ))
+
+        return {
+            "status": "processed",
+            "filename": filename,
+            "markdown_file": parse_result["markdown_file"],
+            "chunks_ingested": parse_result["chunks_ingested"],
+            "equipment_type": equipment_type,
+            "registered_record": reg_result[1] if isinstance(reg_result, tuple) else reg_result
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "filename": filename}
+
+
+@mcp.tool()
+def delete_manual(filename: str) -> dict:
+    """
+    Delete a manual completely from the knowledge base:
+    1. Removes raw document from input storage
+    2. Removes parsed markdown and extracted figure images
+    3. Purges text & image vectors from Qdrant collections
+    4. Removes record from PostgreSQL manual_registry
+
+    Args:
+        filename: Name of the manual to delete.
+
+    Returns:
+        Structured JSON dictionary confirming deletion.
+    """
+    try:
+        import os
+        import shutil
+        from pathlib import Path
+        from app.config import settings
+        from app.services.vector_store import VectorStoreService
+        from app.database.postgres import delete_registered_manual
+        from app.services.retriever import clear_retrieval_cache
+
+        safe_filename = os.path.basename(filename)
+        base_name, _ = os.path.splitext(safe_filename)
+
+        # 1. Remove raw file
+        raw_path = Path(settings.INPUT_DIR) / safe_filename
+        if raw_path.exists():
+            try:
+                raw_path.unlink()
+            except Exception:
+                pass
+
+        # 2. Remove markdown file
+        md_path = Path(settings.OUTPUT_DIR) / f"{base_name}.md"
+        if md_path.exists():
+            try:
+                md_path.unlink()
+            except Exception:
+                pass
+
+        # 3. Remove extracted images folder
+        images_dir = Path(settings.OUTPUT_DIR) / "images" / base_name
+        if images_dir.exists():
+            shutil.rmtree(images_dir, ignore_errors=True)
+
+        # 4. Remove vectors from Qdrant
+        vs = VectorStoreService()
+        vs.delete_by_filename(safe_filename)
+        vs.delete_images_by_filename(safe_filename)
+
+        # 5. Remove from PostgreSQL
+        pg_deleted = _run_async_safely(delete_registered_manual(safe_filename))
+
+        # Clear retrieval cache
+        try:
+            clear_retrieval_cache()
+        except Exception:
+            pass
+
+        return {
+            "status": "deleted",
+            "filename": safe_filename,
+            "postgres_record_removed": pg_deleted
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "filename": filename}
+
+
+@mcp.tool()
+def get_manual_metadata(filename: str) -> dict:
+    """
+    Retrieve comprehensive metadata and indexing telemetry for a specific manual.
+    Queries PostgreSQL manual_registry and Qdrant vector index.
+
+    Args:
+        filename: Name of the manual to inspect.
+
+    Returns:
+        Structured JSON dictionary containing file hash, chunk counts, equipment category, and timestamps.
+    """
+    try:
+        import os
+        from app.database.postgres import get_manual_by_filename
+        from app.services.vector_store import VectorStoreService
+
+        safe_filename = os.path.basename(filename)
+        record = _run_async_safely(get_manual_by_filename(safe_filename))
+        vs = VectorStoreService()
+        all_sources = vs.get_unique_sources()
+        is_in_vectors = safe_filename in all_sources
+
+        if not record and not is_in_vectors:
+            return {
+                "status": "not_found",
+                "filename": safe_filename,
+                "found": False,
+                "message": "Manual not found in PostgreSQL registry or vector store"
+            }
+
+        return {
+            "status": "success",
+            "filename": safe_filename,
+            "found": True,
+            "in_vector_store": is_in_vectors,
+            "metadata": record or {"filename": safe_filename, "equipment_type": "industrial"}
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "filename": filename}
 
 
 if __name__ == "__main__":
     print("[Octo RAG MCP] Starting Refrigerator Diagnostic MCPServer...", file=sys.stderr)
     mcp.run()
+

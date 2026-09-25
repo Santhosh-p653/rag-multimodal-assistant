@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize PostgreSQL schema
+    try:
+        from app.database.postgres import init_postgres_db
+        await init_postgres_db()
+    except Exception as e:
+        print(f"[Startup] PostgreSQL init notice: {e}")
+
     # Pre-warm embedding models into RAM on server startup to eliminate cold-start upload/chat delay
     try:
         print("[Startup] Pre-warming text and vision embedding models...")
@@ -64,6 +71,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000)
     source_file: Optional[str] = None
     session_id: Optional[str] = None
+    language: Optional[str] = "auto"
 
 class ChatResponse(BaseModel):
     answer: str
@@ -75,6 +83,9 @@ class HealthResponse(BaseModel):
     status: str
     llm_provider: str
     vectors_stored: int
+    postgres_connected: bool = False
+    postgres_status: str = "disconnected"
+    postgres_stats: dict = {}
 
 class UploadResponse(BaseModel):
     filename: str
@@ -94,6 +105,7 @@ class AgentRequest(BaseModel):
     query: str
     source_input: Optional[str] = None
     session_id: Optional[str] = None
+    language: Optional[str] = "auto"
 
 class AgentResponse(BaseModel):
     answer: str
@@ -122,46 +134,65 @@ def call_llm(
 # ─── Endpoints ──────────────────────────────────────────────────────────────
 
 @app.get("/health", response_model=HealthResponse)
-def health():
+async def health():
     from app.services.vector_store import VectorStoreService
+    from app.database.postgres import check_postgres_health
     vs = VectorStoreService()
     active_provider = (
         "ollama" if (llm_provider.ollama_enabled and llm_provider.last_provider_used == "ollama")
         else (llm_provider.last_provider_used if llm_provider.last_provider_used != "none" else ("ollama" if llm_provider.ollama_enabled else LLM_PROVIDER))
     )
+    pg_ok, pg_status, pg_stats = await check_postgres_health()
     return {
         "status": "ok",
         "llm_provider": active_provider,
         "vectors_stored": vs.count(),
+        "postgres_connected": pg_ok,
+        "postgres_status": pg_status,
+        "postgres_stats": pg_stats,
     }
 
 
 @app.get("/health/llm")
-def health_llm():
-    """Detailed LLM provider telemetry: primary reachability, cloud fallback, and model mappings."""
-    return llm_provider.get_status()
+async def health_llm():
+    """Detailed LLM and PostgreSQL provider telemetry."""
+    from app.database.postgres import check_postgres_health
+    status = llm_provider.get_status()
+    pg_ok, pg_status, pg_stats = await check_postgres_health()
+    status["postgres"] = {
+        "connected": pg_ok,
+        "status": pg_status,
+        "telemetry": pg_stats
+    }
+    return status
 
 
 @app.get("/files")
-def get_files():
-    """Retrieve all unique source files loaded in storage and vector store."""
+async def get_files():
+    """Retrieve all unique source files loaded in storage, PostgreSQL registry, and vector store."""
     from app.services.vector_store import VectorStoreService
+    from app.database.postgres import list_registered_manuals
     from pathlib import Path
     vs = VectorStoreService()
     try:
         sources = set(vs.get_unique_sources())
+        pg_manuals = await list_registered_manuals()
+        for m in pg_manuals:
+            if m.get("filename"):
+                sources.add(m["filename"])
+
         input_dir = Path(settings.INPUT_DIR)
         if input_dir.exists():
             for f in input_dir.iterdir():
                 if f.is_file() and not f.name.startswith("."):
                     sources.add(f.name)
-        return {"files": sorted(list(sources))}
+        return {"files": sorted(list(sources)), "registry": pg_manuals}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
 
 @app.delete("/files/{filename}")
-def delete_file(filename: str):
+async def delete_file(filename: str):
     """
     Delete a manual completely:
     1. Remove raw file from input_manuals/
@@ -169,13 +200,15 @@ def delete_file(filename: str):
     3. Remove extracted figures/images from processed_markdown/images/{base_name}
     4. Remove vector embeddings from Qdrant 'manuals' collection
     5. Remove image embeddings from Qdrant 'manual_images' collection
-    6. Remove entry from SQLite registry.db
+    6. Remove entry from PostgreSQL manual_registry
+    7. Remove entry from SQLite registry.db (backward compatibility)
     """
     import os
     import shutil
     import sqlite3
     from pathlib import Path
     from app.services.vector_store import VectorStoreService
+    from app.database.postgres import delete_registered_manual
 
     safe_filename = os.path.basename(filename)
     if not safe_filename:
@@ -215,7 +248,13 @@ def delete_file(filename: str):
     except Exception as e:
         logger.error(f"Error deleting vectors for {safe_filename}: {e}")
 
-    # 5. Remove from registry.db
+    # 5. Remove from PostgreSQL manual_registry
+    try:
+        await delete_registered_manual(safe_filename)
+    except Exception as e:
+        logger.error(f"Error clearing PostgreSQL registry for {safe_filename}: {e}")
+
+    # 6. Remove from SQLite registry.db
     reg_path = Path(settings.INPUT_DIR).parent / "registry.db"
     if reg_path.exists():
         try:
@@ -388,6 +427,19 @@ async def chat(payload: ChatRequest, request: Request):
         session["pending_clarification"] = False
         session["clarification_attempts"] = 0
 
+    # --- Record user turn in PostgreSQL ---
+    from app.database.postgres import record_session_turn
+    try:
+        await record_session_turn(
+            session_id=session_id,
+            sender="user",
+            message_text=payload.message,
+            equipment_model=session.get("product"),
+            status="ACTIVE"
+        )
+    except Exception as e:
+        logger.warning(f"[PostgreSQL] Failed to record chat user turn: {e}")
+
     fallback = "I could not find that information in the uploaded manuals."
 
     from app.services.query_understanding import understand_query
@@ -404,6 +456,16 @@ async def chat(payload: ChatRequest, request: Request):
     if retrieval_confidence == "LOW":
         # Extend fallback for LOW relevance or zero results
         low_fallback = fallback + " The query might be too vague or unrelated to the manuals."
+        try:
+            await record_session_turn(
+                session_id=session_id,
+                sender="assistant",
+                message_text=low_fallback,
+                equipment_model=session.get("product"),
+                status="NO_RESULTS"
+            )
+        except Exception:
+            pass
         return ChatResponse(answer=low_fallback, sources=[])
         
     elif retrieval_confidence == "MEDIUM":
@@ -414,6 +476,17 @@ async def chat(payload: ChatRequest, request: Request):
             if top_chunk_product and product_hint.lower() not in top_chunk_product.lower():
                 # Ask clarifying question if product mismatch
                 clarification_q = f"I found some information for {top_chunk_product}, but you asked about {product_hint}. Should I proceed with the details for {top_chunk_product}?"
+                try:
+                    await record_session_turn(
+                        session_id=session_id,
+                        sender="assistant",
+                        message_text=clarification_q,
+                        question=clarification_q,
+                        equipment_model=top_chunk_product,
+                        status="NEED_CLARIFICATION"
+                    )
+                except Exception:
+                    pass
                 return ChatResponse(
                     answer=clarification_q,
                     sources=[],
@@ -449,6 +522,18 @@ async def chat(payload: ChatRequest, request: Request):
     if understood.get("product_hint"):
         session["product"] = understood.get("product_hint")
     session_store.save(session_id, session)
+
+    # Record assistant turn in PostgreSQL
+    try:
+        await record_session_turn(
+            session_id=session_id,
+            sender="assistant",
+            message_text=answer,
+            equipment_model=session.get("product"),
+            status="ANSWERED"
+        )
+    except Exception as e:
+        logger.warning(f"[PostgreSQL] Failed to record chat assistant turn: {e}")
 
     return ChatResponse(answer=answer, sources=sources)
 
@@ -535,10 +620,33 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
             detail=f"MIME type '{file.content_type}' is not allowed.",
         )
 
+    # Check duplicate in PostgreSQL manual_registry via MD5 hash
+    from app.database.postgres import check_manual_duplicate_by_hash, register_manual
+    duplicate = await check_manual_duplicate_by_hash(content)
+    if duplicate:
+        logger.info(f"[PostgreSQL] Duplicate upload skipped: {file.filename} matches existing hash for {duplicate.get('filename')}")
+        return UploadResponse(
+            filename=file.filename,
+            markdown_file=f"{os.path.splitext(file.filename)[0]}.md",
+            chunks_ingested=duplicate.get("chunks_count", 0),
+            status="skipped_duplicate",
+        )
+
     try:
         result = parser_service.parse_file(file.filename, content)
 
-        # Sync SQLite registry with ingested file hash
+        # Register in PostgreSQL manual_registry
+        try:
+            await register_manual(
+                filename=file.filename,
+                file_bytes=content,
+                equipment_type="industrial",
+                chunks_count=result["chunks_ingested"]
+            )
+        except Exception as pg_err:
+            logger.warning(f"[PostgreSQL] Failed to register {file.filename}: {pg_err}")
+
+        # Sync legacy SQLite registry with ingested file hash
         try:
             import hashlib
             import sqlite3
@@ -552,7 +660,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
                 conn.commit()
                 conn.close()
         except Exception as reg_err:
-            logger.warning(f"Failed to update registry for {file.filename}: {reg_err}")
+            logger.warning(f"Failed to update SQLite registry for {file.filename}: {reg_err}")
 
         return UploadResponse(
             filename=file.filename,
@@ -678,9 +786,37 @@ async def troubleshoot(payload: TroubleshootRequest, request: Request):
             detail="I am specialized strictly in refrigerator, cooling appliance, and automotive technical support. Please ask a query related to your vehicle or refrigerator manual."
         )
 
+    # 1. Log user turn in PostgreSQL
+    from app.database.postgres import record_session_turn
+    try:
+        await record_session_turn(
+            session_id=payload.session_id,
+            sender="user",
+            message_text=payload.message,
+            status="TROUBLESHOOTING"
+        )
+    except Exception as e:
+        logger.warning(f"[PostgreSQL] Failed to record troubleshoot user turn: {e}")
+
     from app.services.workflow_manager import process_troubleshoot_turn
     try:
         result = await process_troubleshoot_turn(payload.session_id, payload.message)
+
+        # 2. Log assistant diagnostic response in PostgreSQL
+        try:
+            msg_content = result.get("question") or result.get("next_action") or result.get("answer", "")
+            await record_session_turn(
+                session_id=payload.session_id,
+                sender="assistant",
+                message_text=msg_content,
+                question=result.get("question"),
+                action=result.get("next_action"),
+                status=result.get("status", "TROUBLESHOOTING"),
+                step_number=result.get("step", 0)
+            )
+        except Exception as e:
+            logger.warning(f"[PostgreSQL] Failed to record troubleshoot assistant turn: {e}")
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -705,9 +841,23 @@ async def agent_run(payload: AgentRequest, request: Request):
     if not session_id:
         import uuid
         session_id = str(uuid.uuid4())
+
+    # 1. Log user turn in PostgreSQL
+    from app.database.postgres import record_session_turn
+    try:
+        await record_session_turn(
+            session_id=session_id,
+            sender="user",
+            message_text=payload.query,
+            status="AGENT_ACTIVE"
+        )
+    except Exception as e:
+        logger.warning(f"[PostgreSQL] Failed to record agent user turn: {e}")
         
     inputs = {
         "query": payload.query,
+        "raw_query": payload.query,
+        "language": payload.language or "auto",
         "source_input": payload.source_input,
         "source_content": None,
         "product_id": None,
@@ -735,9 +885,33 @@ async def agent_run(payload: AgentRequest, request: Request):
     try:
         # Run synchronous LangGraph execution in worker threadpool to avoid blocking event loop
         result = await run_in_threadpool(agent_graph.invoke, inputs)
+
+        # 2. Log assistant turn in PostgreSQL
+        try:
+            ans = result.get("answer") or result.get("clarification_question") or ""
+            await record_session_turn(
+                session_id=session_id,
+                sender="assistant",
+                message_text=ans,
+                question=result.get("clarification_question"),
+                equipment_model=result.get("product_id"),
+                status=result.get("status") or ("NEED_CLARIFICATION" if result.get("clarification_needed") else "COMPLETED")
+            )
+        except Exception as e:
+            logger.warning(f"[PostgreSQL] Failed to record agent assistant turn: {e}")
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent workflow execution failed: {str(e)}")
+
+
+# ─── Admin Audit & Telemetry Endpoints ─────────────────────────────────────
+
+@app.get("/admin/audit")
+async def get_admin_audit():
+    """Returns high-level audit summary and recent turn telemetry for the Admin dashboard."""
+    from app.database.postgres import get_audit_summary
+    return await get_audit_summary()
 
 
 # ─── Chat History & Session Persistence Endpoints ─────────────────────────
@@ -760,8 +934,13 @@ def list_sessions(user_id: str = "default_user"):
 
 
 @app.get("/sessions/{session_id}")
-def get_session(session_id: str):
+async def get_session(session_id: str):
     """Retrieve full conversation details for a specific session."""
+    from app.database.postgres import get_session_history
+    pg_data = await get_session_history(session_id)
+    if pg_data and pg_data.get("messages"):
+        return pg_data
+
     from app.services.session_store import SessionStore
     store = SessionStore()
     if session_id not in store.sessions:

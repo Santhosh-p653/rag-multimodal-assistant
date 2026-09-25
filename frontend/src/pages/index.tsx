@@ -285,7 +285,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const data = await sendMessage(text, selectedFile, sessId);
+      const data = await sendMessage(text, selectedFile, sessId, hintLang);
       const assistantMsg: Message = {
         id: Math.random().toString(36).substring(7),
         sender: "assistant",
@@ -618,20 +618,20 @@ export default function Home() {
                 </div>
               </button>
 
-              <Link
-                href="/admin"
+              <button
+                onClick={() => handleSend("What are the common diagnostic error codes and troubleshooting steps for my equipment?")}
                 className="octo-card p-5 text-left flex items-start gap-4 hover:border-octo-orange transition-all duration-200 group"
               >
                 <div className="p-3 rounded-btn bg-octo-surface-warm text-octo-charcoal group-hover:bg-octo-orange group-hover:text-white transition-colors">
                   <FileText className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-octo-charcoal">My manuals</h3>
+                  <h3 className="text-base font-semibold text-octo-charcoal">Diagnostic Codes</h3>
                   <p className="text-xs text-octo-muted mt-1 leading-relaxed">
-                    Upload new manuals or view indexed document guides.
+                    Lookup error codes, multimeter specs, and sensor tests.
                   </p>
                 </div>
-              </Link>
+              </button>
             </div>
           </div>
         ) : (
