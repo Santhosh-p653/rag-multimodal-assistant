@@ -4,6 +4,7 @@ Handles session state, file registry, and audit logs with SQLAlchemy async + asy
 Maintains Qdrant as the pure vector engine.
 """
 import os
+import asyncio
 import hashlib
 import logging
 from datetime import datetime, timezone
@@ -144,6 +145,7 @@ class SessionTurn(Base):
 
 _async_engine: Optional[AsyncEngine] = None
 _async_session_factory = None
+_engine_loop = None
 _pg_available: Optional[bool] = None
 _pg_last_error: Optional[str] = None
 
@@ -160,8 +162,13 @@ def get_postgres_url() -> str:
 
 
 def get_async_engine() -> AsyncEngine:
-    global _async_engine, _async_session_factory
-    if _async_engine is None:
+    global _async_engine, _async_session_factory, _engine_loop
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    if _async_engine is None or (_engine_loop is not None and current_loop is not None and _engine_loop != current_loop):
         url = get_postgres_url()
         _async_engine = create_async_engine(
             url,
@@ -171,6 +178,7 @@ def get_async_engine() -> AsyncEngine:
             pool_timeout=15,
             pool_recycle=1800,
         )
+        _engine_loop = current_loop
         _async_session_factory = async_sessionmaker(
             bind=_async_engine,
             class_=AsyncSession,
@@ -180,7 +188,13 @@ def get_async_engine() -> AsyncEngine:
 
 
 def get_session_factory():
-    if _async_session_factory is None:
+    global _async_session_factory, _engine_loop
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    if _async_session_factory is None or (_engine_loop is not None and current_loop is not None and _engine_loop != current_loop):
         get_async_engine()
     return _async_session_factory
 
