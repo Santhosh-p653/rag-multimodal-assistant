@@ -396,6 +396,8 @@ def profile_pipeline():
     # --------------------------------------------------------
 
     from app.services.query_understanding import understand_query
+    from app.services.prompt_guard import is_prompt_injection, is_out_of_domain
+    from app.services.product_identifier import identify_product_fallback
     from app.services.retriever import retrieve_context
     from app.services.vision_embedder import VisionEmbedderService
     from app.services.vector_store import VectorStoreService
@@ -829,15 +831,19 @@ def profile_pipeline():
         expected = test["expected_keywords"]
 
         # ----------------------------------------------------
-        # 1. Query Understanding
+        # 1. Query Understanding (Local Pre-Retrieval Pipeline)
         #
-        # We intentionally bypass the LLM here to avoid
-        # external API rate limits during pure retrieval
-        # benchmarking.
+        # Measures real local query analysis latency:
+        # prompt injection guard, domain boundary verification,
+        # normalization, and entity/product extraction without
+        # external cloud LLM rate-limit overhead.
         # ----------------------------------------------------
 
         t0 = time.perf_counter()
 
+        _ = is_prompt_injection(query)
+        _ = is_out_of_domain(query)
+        entities = identify_product_fallback(query)
         normalized_query = query.strip()
 
         t_qu = (
@@ -852,7 +858,7 @@ def profile_pipeline():
 
         chunks, confidence = retrieve_context(
             normalized_query,
-            query_entities={}
+            query_entities=entities
         )
 
         t_ret = (
