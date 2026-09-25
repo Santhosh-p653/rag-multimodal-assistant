@@ -66,6 +66,7 @@ class AgentState(TypedDict):
     session_id: Optional[str]
     language: Optional[str]
     raw_query: Optional[str]
+    query_image: Optional[str]
     input_confidence: str
     retrieval_confidence: str
     clarification_question: Optional[str]
@@ -563,7 +564,32 @@ def image_filtering_node(state: AgentState) -> Dict[str, Any]:
                     "image_data": img
                 })
 
-    # 3. Vision search fallback if candidates are sparse
+    # 3. Multimodal query image search if query_image is provided
+    query_image = state.get("query_image")
+    if query_image:
+        source_file = chunks[0].get("source") or chunks[0].get("source_file") or ""
+        doc_id = source_file.replace(".pdf", "").replace(".md", "")
+        try:
+            from app.services.vision_search import search_similar_images
+            img_hits = search_similar_images(query=query_text, query_image_base64=query_image, top_k=5, source_file=source_file if source_file else None)
+            for v in img_hits:
+                candidates.append({
+                    "image_id": v["image_id"],
+                    "document_id": doc_id or v.get("document_id", "manual"),
+                    "page_number": v.get("page_number", 1),
+                    "sim_score": 0.85 + (v.get("vision_score", 0.0) * 0.15),
+                    "image_data": {
+                        "image_id": v["image_id"],
+                        "document_id": doc_id or v.get("document_id", "manual"),
+                        "page_number": v.get("page_number", 1),
+                        "caption": v.get("caption") or v.get("nearby_text") or "Matching Component Diagram",
+                        "image_path": v.get("image_path")
+                    }
+                })
+        except Exception as q_err:
+            print(f"[AgentFlow] Multimodal query image search notice: {q_err}")
+
+    # 4. Vision search fallback if candidates are sparse
     if len(candidates) < 2:
         source_file = chunks[0].get("source") or chunks[0].get("source_file") or ""
         doc_id = source_file.replace(".pdf", "").replace(".md", "")

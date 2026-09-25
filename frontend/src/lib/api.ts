@@ -28,7 +28,8 @@ export async function sendMessage(
   message: string,
   sourceFile: string | null = null,
   sessionId?: string | null,
-  language?: string | null
+  language?: string | null,
+  imageBase64?: string | null
 ): Promise<ChatResponse> {
   const response = await fetch(`${API_URL}/agent/run`, {
     method: "POST",
@@ -38,6 +39,7 @@ export async function sendMessage(
       source_input: sourceFile,
       session_id: sessionId || undefined,
       language: language && language !== "auto" ? language : undefined,
+      image_base64: imageBase64 || undefined,
     }),
   });
 

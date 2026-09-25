@@ -58,9 +58,11 @@ app.add_middleware(
 )
 
 from app.mcp.fridge_mcp_server import mcp as fridge_mcp_server
+from app.mcp.auto_mcp_server import mcp as auto_mcp_server
 
-# Mount MCP Server (Server-Sent Events transport at /mcp/sse)
+# Mount MCP Servers (Server-Sent Events transport at /mcp/sse and /auto_mcp/sse)
 app.mount("/mcp", fridge_mcp_server.sse_app())
+app.mount("/auto_mcp", auto_mcp_server.sse_app())
 
 # Eagerly initialize services (loads embedding model at startup)
 parser_service = ParserService()
@@ -72,6 +74,7 @@ class ChatRequest(BaseModel):
     source_file: Optional[str] = None
     session_id: Optional[str] = None
     language: Optional[str] = "auto"
+    image_base64: Optional[str] = None
 
 class ChatResponse(BaseModel):
     answer: str
@@ -106,6 +109,7 @@ class AgentRequest(BaseModel):
     source_input: Optional[str] = None
     session_id: Optional[str] = None
     language: Optional[str] = "auto"
+    image_base64: Optional[str] = None
 
 class AgentResponse(BaseModel):
     answer: str
@@ -858,6 +862,7 @@ async def agent_run(payload: AgentRequest, request: Request):
         "query": payload.query,
         "raw_query": payload.query,
         "language": payload.language or "auto",
+        "query_image": payload.image_base64,
         "source_input": payload.source_input,
         "source_content": None,
         "product_id": None,

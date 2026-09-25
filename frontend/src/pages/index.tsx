@@ -258,10 +258,10 @@ export default function Home() {
     [userId]
   );
 
-  const handleSend = async (text: string) => {
-    if (!text || !text.trim()) return;
+  const handleSend = async (text: string, imageBase64?: string) => {
+    if ((!text || !text.trim()) && !imageBase64) return;
     setErrorMessage(null);
-    setLastQuery(text);
+    setLastQuery(text || "Image Query");
 
     let sessId = activeSessionId;
     if (!sessId) {
@@ -275,7 +275,8 @@ export default function Home() {
     const userMsg: Message = {
       id: Math.random().toString(36).substring(7),
       sender: "user",
-      text,
+      text: text || "Uploaded image for diagnostic search",
+      query_image: imageBase64,
       timestamp: new Date(),
     };
 
@@ -285,7 +286,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const data = await sendMessage(text, selectedFile, sessId, hintLang);
+      const data = await sendMessage(text, selectedFile, sessId, hintLang, imageBase64);
       const assistantMsg: Message = {
         id: Math.random().toString(36).substring(7),
         sender: "assistant",

@@ -15,6 +15,7 @@ export interface Message {
   id: string;
   sender: "user" | "assistant";
   text: string;
+  query_image?: string;     // Base64 thumbnail or image URL for user query attachment
   sources?: string[];       // Source documents cited in the answer
   images?: RetrievedImage[]; // Associated visual diagrams
   timestamp: Date;
@@ -194,6 +195,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   : "octo-card text-octo-charcoal text-base md:text-[18px] leading-[1.65]"
               }`}
             >
+              {message.query_image && (
+                <div className="mb-3 rounded-lg overflow-hidden border border-octo-border max-w-[280px] bg-white shadow-sm">
+                  <img
+                    src={message.query_image}
+                    alt="Query attachment"
+                    className="w-full h-auto object-cover max-h-56"
+                  />
+                </div>
+              )}
               <p className="whitespace-pre-wrap">
                 {isLongAnswer && !isExpanded
                   ? message.text.slice(0, 300) + "..."
